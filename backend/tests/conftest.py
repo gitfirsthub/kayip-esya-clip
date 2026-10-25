@@ -50,7 +50,8 @@ def blurrer():
 
 
 @pytest.fixture
-def api(settings, blurrer):
+def api(settings, blurrer, monkeypatch):
+    monkeypatch.setattr("app.main.get_settings", lambda: settings)
     app = create_app()
     encoder = FakeEncoder()
     campus = load_campus()

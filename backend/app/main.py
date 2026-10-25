@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,8 +8,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, get_settings
+from app.api import items as items_api
 from app.api import meta as meta_api
 from app.errors import register_error_handlers
 from app.schemas import HealthResponse
@@ -85,6 +88,12 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
     app.include_router(meta_api.router)
+    app.include_router(items_api.router)
+    app.mount(
+        "/uploads",
+        StaticFiles(directory=os.path.join(settings.data_dir, "uploads"), check_dir=False),
+        name="uploads",
+    )
 
     @app.get("/health", response_model=HealthResponse)
     async def health():

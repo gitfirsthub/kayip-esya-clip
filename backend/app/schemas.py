@@ -15,3 +15,24 @@ class MetaResponse(BaseModel):
     categories: list[str]
     colors: list[str]
     max_upload_mb: int
+
+
+class Item(BaseModel):
+    id: str
+    title: str
+    description: str
+    location: str
+    found_date: str
+    dropoff_point: str
+    image_url: str
+    category: str
+    category_score: float
+    color: str
+    faces_blurred: int
+    status: str
+    created_at: str
+
+
+class ItemList(BaseModel):
+    items: list[Item]
+    total: int
