@@ -1,0 +1,12 @@
+#!/bin/sh
+# Anlamsız commit mesajlarını reddeder (şartname md. 7)
+msg=$(head -n1 "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+lower=$(printf '%s' "$msg" | tr '[:upper:]' '[:lower:]')
+case "$lower" in
+  update|updates|fix|fixes|asdf|wip|test|changes|commit|"")
+    echo "Commit reddedildi: '$msg' açıklayıcı değil. Örnek: 'Görsel yükleme uç noktası eklendi'"; exit 1;;
+esac
+if [ ${#msg} -lt 15 ]; then
+  echo "Commit reddedildi: mesaj çok kısa (en az 15 karakter, ne yapıldığını anlatmalı)."; exit 1
+fi
+exit 0
