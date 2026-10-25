@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
+from app.api import meta as meta_api
 from app.errors import register_error_handlers
 from app.schemas import HealthResponse
 
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     register_error_handlers(app)
+    app.include_router(meta_api.router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health():

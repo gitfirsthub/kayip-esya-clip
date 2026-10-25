@@ -16,6 +16,15 @@ HTTP_MESSAGES = {
 }
 
 
+class ApiError(Exception):
+    """İstemciye {"detail": <Türkçe mesaj>} olarak dönen beklenen hata."""
+
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
 def _detail_response(status_code: int, detail: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"detail": detail})
 
@@ -24,6 +33,10 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):
         return _detail_response(422, VALIDATION_ERROR)
+
+    @app.exception_handler(ApiError)
+    async def api_error_handler(request: Request, exc: ApiError):
+        return _detail_response(exc.status_code, exc.detail)
 
     @app.exception_handler(HTTPException)
     async def http_handler(request: Request, exc: HTTPException):
