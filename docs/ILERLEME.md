@@ -5,7 +5,7 @@
 | 0 Kurulum | ✅ | 2026-10-25 | Kurallar, plan, hook'lar, agent'lar ve komutlar eklendi; venv: `.venv` (Python 3.12.10); hook ve commit-msg testleri geçti |
 | 1 Backend iskeleti | ✅ | 2026-10-26 | /health, hata yakalayıcılar, model indirme betiği ve Dockerfile eklendi; 6 test geçti; imaj internetsiz ayağa kalktı |
 | 2 ML çekirdeği | ✅ | 2026-10-26 | image_io, ClipEncoder/FakeEncoder, YuNet yüz bulanıklaştırma (kapalı-güvenli), tagger, SQLite deposu + vektör arama, smoke ve try_blur betikleri; 44 test geçti; imaj internetsiz açılıyor (face_blur=true). "siyah sırt çantası top-3" kontrolü Faz 6'ya ertelendi (demo_data yok) |
-| 3 API | ⬜ | | |
+| 3 API | ✅ | 2026-10-26 | /api/meta, /api/items (POST/GET/liste), /api/search, admin PATCH/DELETE, /uploads statik; 83 test geçti; imaj gerçek modelle curl ile denendi (aşağıdaki Ölçümler) |
 | 4 Frontend | ⬜ | | |
 | 5 Compose | ⬜ | | |
 | 6 Eval | ⬜ | | |
@@ -14,18 +14,20 @@
 | 9 Dokümantasyon | ⬜ | | |
 
 ## Açık sorular (kullanıcıya)
-- Faz 3: yüz modeli yokken (`blurrer.available == False`, örn. FACE_BLUR_ENABLED=false) yükleme kabul edilsin mi, reddedilsin mi? (spec-guard uyarısı; CLAUDE.md madde 6)
-- Faz 2: try_blur.py ile selfie üzerinde elle yüz bulanıklaştırma doğrulaması bekleniyor; sonuç buraya yazılacak.
-- Commit'lerin 5 farklı güne yayılma şartı: organizatör teyidi bekleniyor.
 - campus.json'daki yer isimleri GTÜ'ye uygun mu?
 
 ## Notlar
+- Faz 2 doğrulaması tamamlandı: kullanıcı try_blur.py ile kendi yüzünde denedi, yüz tamamen bulanıklaştı. Commit'lerin 5 güne yayılma şartı kullanıcı kararıyla dikkate alınmıyor.
 - Faz 2 kararları (kullanıcı onaylı): aynı-uzay doğrulaması dokulu sentetik nesnelerle yapıldı (düz beyaz kare CLIP'in kendi İngilizce kodlayıcısında da başarısız; görsel kodlayıcı sınırlaması). "diğer" kategorisi istem matrisinden çıkarıldı, yalnızca güven < 0.35'te dönen yedek etiket. `backend/scripts/try_blur.py` kullanıcının isteğiyle eklendi (PLAN dosya listesi dışında). `.gitignore`'da `data/` → `/data/` (campus.json takip edilsin diye).
 - Faz 2: model yüklüyken yüz tespiti hata verirse `FaceBlurError` fırlatılır (görsel bulanıklaştırılmadan geçmez).
 - Faz 2 commit'leri kod paralel yazıldıktan sonra adım adım (her biri kendi testiyle) ama kısa aralıkla atıldı; spec-guard bunu "toplu commit" gibi görünebilir diye uyardı. Sonraki fazlarda her adım bitince hemen commit atılacak.
 - Faz 8'deki yasaklı kelime grep'i `.claude/hooks/spec_guard.py` dosyasını da yakalar (yasak listesi o dosyada). Faz 8'de `--exclude-dir=.claude` eklenmesi kullanıcıya sorulacak.
 
+- Faz 3 kararları (kullanıcı onaylı): yüz modeli yokken POST /api/items 503 döner (bulanıklaştırılmamış görsel saklanmaz); image_url göreli `/uploads/<uuid>.jpg`; geçersiz location/category/status filtresi 422; sözleşmede olmayan hata metinleri (413, 415, 403, 503, alan 422'leri) onaylanan Türkçe metinlerle uygulandı. Tarih kontrolü Türkiye saatiyle (UTC+3) yapılır. Aramada geçersiz `include_returned` / `top_k` 422 döner. Test görselleri Pillow ile kodda üretilir.
+
 ## Fikir Havuzu (kapsam dışı, onay bekleyen)
+- Faz 3 spec-guard uyarısı (CLAUDE.md madde 6): Starlette `UploadFile` 1 MB üstü yüklemeleri sistem tmp'sine (`SpooledTemporaryFile`) yazabilir; bu geçici kopya bulanıklaştırılmamış olabilir. Kodda ele alınmadı. Öneri: Faz 5'te compose'a `tmpfs: /tmp` ekle (kalıcı diske hiç yazılmaz), README'ye bilinen sınırlama olarak yaz. Kullanıcı onayı bekliyor.
+- Faz 3 spec-guard notu: `ADMIN_TOKEN=change-me` örnek değerdir; README'de değiştirilmesi gerektiği yazılacak (Faz 9).
 - Faz 5: BACKEND_PORT backend'de okunmuyor (CMD 8000 sabit); compose'da portu eşle veya .env.example'dan çıkar (spec-guard notu).
 
 ## Ölçümler (build süresi, imaj boyutu, gecikmeler)
@@ -39,3 +41,4 @@
   - 1000 öğede arama (top_k=12, 100 tekrar): ort 0.27 ms, maks 0.56 ms; filtreli 0.06 ms (hedef < 300 ms). Metin kodlama + arama: ort 25.2 ms.
   - Uygulama açılışı (venv, TestClient): /health 200'e 4.6 sn. Docker `--network none`: 7 sn'de 200, face_blur=true.
   - Şablon karşılaştırması (13 renkte dokulu sentetik nesne, renk doğruluğu): tr 9/13, en 10/13, avg 11/13 → avg seçildi.
+  - Faz 3 (docker, gerçek modeller, sentetik mavi şemsiye görseli, M4 Pro): `POST /api/items` 201, 0.149 sn, kategori=şemsiye (0.9996), renk=mavi, faces_blurred=0. `POST /api/search -F "query=mavi şemsiye"` 200, skor 0.3183 → "yüksek", took_ms 26.2. Aynı görselle arama: skor 1.0, took_ms 73.2. "siyah sırt çantası" sorgusu aynı ilana 0.2124 → "düşük". Boş arama 422 sözleşme metni; token'sız DELETE 403.
