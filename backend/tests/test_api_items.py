@@ -143,3 +143,47 @@ def test_blur_unavailable_503_and_nothing_saved(api, blurrer):
     assert r.json() == {"detail": "Yüz bulanıklaştırma şu an kullanılamıyor; ilan kaydedilemedi."}
     assert uploaded_files(api) == []
     assert api.get("/health").json()["item_count"] == 0
+
+
+def test_list_items_newest_first_and_paging(api):
+    ids = [post_item(api, title=f"Eşya {i}").json()["id"] for i in range(3)]
+    r = api.get("/api/items")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 3
+    assert [i["id"] for i in body["items"]] == ids[::-1]
+    page = api.get("/api/items?limit=2&offset=2").json()
+    assert page["total"] == 3 and [i["id"] for i in page["items"]] == [ids[0]]
+
+
+def test_list_items_filters(api):
+    post_item(api, location="Yemekhane")
+    post_item(api, location="Spor Salonu")
+    assert api.get("/api/items?location=Yemekhane").json()["total"] == 1
+    assert api.get("/api/items?status=teslim_edildi").json()["total"] == 0
+    assert api.get("/api/items?status=bekliyor").json()["total"] == 2
+    cat = api.get("/api/items").json()["items"][0]["category"]
+    assert api.get(f"/api/items?category={cat}").json()["total"] >= 1
+
+
+def test_list_items_invalid_params_422(api):
+    for query, detail in [
+        ("status=x", "Geçersiz durum."),
+        ("location=Ay", "Geçersiz yer."),
+        ("category=x", "Geçersiz kategori."),
+        ("limit=0", "Geçersiz sayfalama değeri."),
+        ("limit=101", "Geçersiz sayfalama değeri."),
+        ("offset=-1", "Geçersiz sayfalama değeri."),
+    ]:
+        r = api.get(f"/api/items?{query}")
+        assert r.status_code == 422, query
+        assert r.json() == {"detail": detail}, query
+
+
+def test_get_item_and_404(api):
+    created = post_item(api).json()
+    r = api.get(f"/api/items/{created['id']}")
+    assert r.status_code == 200 and r.json() == created
+    r = api.get("/api/items/yok")
+    assert r.status_code == 404
+    assert r.json() == {"detail": "İlan bulunamadı."}

@@ -13,7 +13,8 @@ from app.deps import get_blurrer, get_campus, get_encoder, get_store, get_tagger
 from app.errors import ApiError
 from app.ml.face_blur import FaceBlurError
 from app.ml.image_io import InvalidImageError, load_and_sanitize
-from app.schemas import Item
+from app.schemas import Item, ItemList
+from app.store import STATUSES
 
 logger = logging.getLogger("app.items")
 
@@ -134,4 +135,34 @@ async def create_item(
         if os.path.exists(path):
             os.remove(path)
         raise
+    return to_item(record)
+
+
+@router.get("/items", response_model=ItemList)
+async def list_items(
+    status: str | None = None,
+    location: str | None = None,
+    category: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+    campus: dict = Depends(get_campus),
+    store=Depends(get_store),
+):
+    if status and status not in STATUSES:
+        raise ApiError(422, MSG_BAD_STATUS)
+    if location and location not in campus["locations"]:
+        raise ApiError(422, MSG_LOCATION)
+    if category and category not in [c["tr"] for c in campus["categories"]]:
+        raise ApiError(422, MSG_BAD_CATEGORY)
+    if not 1 <= limit <= 100 or offset < 0:
+        raise ApiError(422, MSG_BAD_PAGING)
+    records, total = store.list_items(status=status, location=location, category=category, limit=limit, offset=offset)
+    return ItemList(items=[to_item(r) for r in records], total=total)
+
+
+@router.get("/items/{item_id}", response_model=Item)
+async def get_item(item_id: str, store=Depends(get_store)):
+    record = store.get(item_id)
+    if record is None:
+        raise ApiError(404, MSG_NOT_FOUND)
     return to_item(record)
