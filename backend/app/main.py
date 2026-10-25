@@ -1,7 +1,8 @@
+import json
 import logging
-import os
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,33 +16,42 @@ VERSION = "0.1.0"
 
 logger = logging.getLogger("app.main")
 
+CAMPUS_PATH = Path(__file__).parent / "data" / "campus.json"
 
-def check_models(settings: Settings) -> bool:
-    """Modellerin diskte olduğunu ve yüklenebildiğini doğrular. Yüz modeli yoksa True/False döner."""
-    from sentence_transformers import SentenceTransformer
 
-    for name in (settings.image_model, settings.text_model):
-        SentenceTransformer(name, cache_folder=settings.model_cache_dir, device="cpu")
+def load_campus() -> dict:
+    return json.loads(CAMPUS_PATH.read_text(encoding="utf-8"))
 
-    if not settings.face_blur_enabled:
-        logger.warning("Yüz bulanıklaştırma ortam değişkeniyle kapatıldı.")
-        return False
-    if not os.path.isfile(settings.face_model_path):
-        logger.warning("Yüz modeli bulunamadı: %s", settings.face_model_path)
-        return False
-    try:
-        import cv2
 
-        cv2.FaceDetectorYN.create(settings.face_model_path, "", (320, 320))
-    except Exception:
-        logger.warning("Yüz modeli yüklenemedi.", exc_info=True)
-        return False
-    return True
+def load_components(app: FastAPI, settings: Settings) -> None:
+    """Kodlayıcı, yüz bulanıklaştırıcı, etiketleyici ve depoyu oluşturup app.state'e koyar."""
+    from app.ml.encoder import ClipEncoder
+    from app.ml.face_blur import FaceBlurrer
+    from app.ml.tagger import Tagger
+    from app.store import Store
+
+    campus = load_campus()
+    encoder = ClipEncoder(
+        settings.image_model,
+        settings.text_model,
+        cache_folder=settings.model_cache_dir,
+        threads=settings.torch_num_threads,
+    )
+    app.state.campus = campus
+    app.state.encoder = encoder
+    app.state.tagger = Tagger(encoder, campus["categories"], campus["colors"])
+    app.state.blurrer = FaceBlurrer(
+        settings.face_model_path,
+        settings.face_score_threshold,
+        enabled=settings.face_blur_enabled,
+    )
+    app.state.store = Store(settings.data_dir, dim=encoder.dim)
 
 
 def _load(app: FastAPI, settings: Settings) -> None:
     try:
-        app.state.face_blur = check_models(settings)
+        load_components(app, settings)
+        app.state.face_blur = app.state.blurrer.available
         app.state.models_loaded = True
         app.state.ready = True
     except Exception:
@@ -64,7 +74,7 @@ def create_app() -> FastAPI:
     app.state.models_loaded = False
     app.state.face_blur = False
     app.state.load_failed = False
-    app.state.item_count = 0
+    app.state.store = None
 
     app.add_middleware(
         CORSMiddleware,
@@ -84,7 +94,7 @@ def create_app() -> FastAPI:
             status="ok",
             models_loaded=app.state.models_loaded,
             face_blur=app.state.face_blur,
-            item_count=app.state.item_count,
+            item_count=app.state.store.count() if app.state.store else 0,
             version=VERSION,
         )
 

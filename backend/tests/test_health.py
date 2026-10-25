@@ -74,3 +74,28 @@ def test_http_exception_and_404_are_turkish():
         raise HTTPException(status_code=404, detail="İlan bulunamadı.")
 
     assert TestClient(app).get("/gone").json() == {"detail": "İlan bulunamadı."}
+
+
+def test_health_item_count_comes_from_store(tmp_path):
+    import numpy as np
+
+    from app.store import Store
+
+    store = Store(str(tmp_path), dim=4)
+    store.add(
+        {
+            "title": "Termos",
+            "location": "Yemekhane",
+            "found_date": "2026-10-25",
+            "dropoff_point": "Öğrenci İşleri",
+            "image_path": "x.jpg",
+            "category": "su şişesi-termos",
+            "category_score": 0.7,
+            "color": "mavi",
+        },
+        np.array([1, 0, 0, 0], dtype=np.float32),
+    )
+    r = make_client(ready=True, models_loaded=True, face_blur=False, store=store).get("/health")
+    assert r.status_code == 200
+    assert r.json()["item_count"] == 1
+    store.close()
