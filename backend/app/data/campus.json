@@ -1,0 +1,57 @@
+{
+  "locations": [
+    "Merkez Kütüphane",
+    "Merkez Amfi",
+    "Yemekhane",
+    "Kafeterya",
+    "Mühendislik Fakültesi",
+    "Temel Bilimler Fakültesi",
+    "Mimarlık Fakültesi",
+    "Spor Salonu",
+    "Ring / Otobüs Durağı",
+    "Yurtlar",
+    "Diğer"
+  ],
+  "dropoff_points": [
+    "Güvenlik Birimi (Ana Kapı)",
+    "Öğrenci İşleri",
+    "Kütüphane Danışma",
+    "Bölüm Sekreterliği"
+  ],
+  "categories": [
+    {"tr": "telefon", "en": "phone"},
+    {"tr": "cüzdan", "en": "wallet"},
+    {"tr": "anahtar", "en": "keys"},
+    {"tr": "sırt çantası", "en": "backpack"},
+    {"tr": "el çantası", "en": "handbag"},
+    {"tr": "laptop", "en": "laptop"},
+    {"tr": "tablet", "en": "tablet"},
+    {"tr": "kulaklık", "en": "headphones or earbuds"},
+    {"tr": "şarj aleti", "en": "charger and cable"},
+    {"tr": "su şişesi-termos", "en": "water bottle or thermos"},
+    {"tr": "mont-ceket", "en": "jacket or coat"},
+    {"tr": "şemsiye", "en": "umbrella"},
+    {"tr": "gözlük", "en": "glasses"},
+    {"tr": "kitap-defter", "en": "book or notebook"},
+    {"tr": "kart-kimlik", "en": "card or ID card"},
+    {"tr": "saat", "en": "wristwatch"},
+    {"tr": "takı", "en": "jewelry"},
+    {"tr": "hesap makinesi", "en": "calculator"},
+    {"tr": "diğer", "en": "other"}
+  ],
+  "colors": [
+    {"tr": "siyah", "en": "black"},
+    {"tr": "beyaz", "en": "white"},
+    {"tr": "gri", "en": "gray"},
+    {"tr": "kırmızı", "en": "red"},
+    {"tr": "mavi", "en": "blue"},
+    {"tr": "lacivert", "en": "navy blue"},
+    {"tr": "yeşil", "en": "green"},
+    {"tr": "sarı", "en": "yellow"},
+    {"tr": "turuncu", "en": "orange"},
+    {"tr": "mor", "en": "purple"},
+    {"tr": "pembe", "en": "pink"},
+    {"tr": "kahverengi", "en": "brown"},
+    {"tr": "bej", "en": "beige"}
+  ]
+}
