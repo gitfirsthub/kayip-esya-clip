@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import Settings, get_settings
 from app.api import items as items_api
 from app.api import meta as meta_api
+from app.api import search as search_api
 from app.errors import register_error_handlers
 from app.schemas import HealthResponse
 
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(meta_api.router)
     app.include_router(items_api.router)
+    app.include_router(search_api.router)
     app.mount(
         "/uploads",
         StaticFiles(directory=os.path.join(settings.data_dir, "uploads"), check_dir=False),

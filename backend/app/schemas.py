@@ -36,3 +36,18 @@ class Item(BaseModel):
 class ItemList(BaseModel):
     items: list[Item]
     total: int
+
+
+class SearchResult(BaseModel):
+    item: Item
+    score: float
+    match_level: str
+
+
+class SearchResponse(BaseModel):
+    results: list[SearchResult]
+    took_ms: float
+
+
+class StatusUpdate(BaseModel):
+    status: str
