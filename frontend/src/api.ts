@@ -58,14 +58,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    if (res.status === 503) {
-      throw new ApiError(503, "Model yükleniyor, birkaç saniye sonra tekrar deneyin.");
-    }
+    // 503'te backend'in kendi mesajı önceliklidir (OCR veya yüz bulanıklaştırma hatası
+    // "model yükleniyor" değildir); mesaj yoksa model yükleniyor sayılır.
     const detail = await readDetail(res);
-    throw new ApiError(
-      res.status,
-      detail ?? `Beklenmeyen bir hata oluştu (kod ${res.status}).`,
-    );
+    const fallback =
+      res.status === 503
+        ? "Model yükleniyor, birkaç saniye sonra tekrar deneyin."
+        : `Beklenmeyen bir hata oluştu (kod ${res.status}).`;
+    throw new ApiError(res.status, detail ?? fallback);
   }
   try {
     return (await res.json()) as T;
