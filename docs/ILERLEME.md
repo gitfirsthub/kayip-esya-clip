@@ -8,7 +8,7 @@
 | 3 API | ✅ | 2026-10-26 | /api/meta, /api/items (POST/GET/liste), /api/search, admin PATCH/DELETE, /uploads statik; 83 test geçti; imaj gerçek modelle curl ile denendi (aşağıdaki Ölçümler) |
 | 4 Frontend | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | React 19.3.1 + Vite 8.3.5 + TS 7.0.2; üç sekme (arama, yükleme, liste); `npm run build` ve `tsc` hatasız; nginx imajı build oldu, SPA fallback 200; backend ile CORS preflight geçti; spec-guard kritik ihlal yok |
 | 5 Compose | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | docker-compose.yml (PLAN tanımı), .env.example notları; `.env`siz temiz klonda tek komutla ayağa kalktı; meta/yükleme/arama curl ile geçti; amd64 backend build'i başarılı; spec-guard kritik kod ihlali yok |
-| 6 Eval | ⬜ | | |
+| 6 Eval | ✅ | 2026-10-26 | 21 ilan + 42 TR/42 EN metin + 7 görsel sorgu; seed_demo.py, eval_retrieval.py, EVAL.md; TR metin R@5 0.857 / R@1 0.524; eşikler 0.315/0.255; 83 test geçti; spec-guard kritik ihlal yok |
 | 7 Ek: kayıp bildirimi | ⬜ | | |
 | 8 Denetim | ⬜ | | |
 | 9 Dokümantasyon | ⬜ | | |
@@ -29,7 +29,11 @@
 
 - Faz 5 kararları: compose'ta `BACKEND_PORT` yalnızca host portunu belirler (konteyner içi 8000 sabit). `HF_HUB_OFFLINE` ve `TRANSFORMERS_OFFLINE` compose `environment` bloğunda sabit "1" (spec-guard uyarısı; `.env` ezemesin diye). `tmpfs: /tmp` (Fikir Havuzu) HENÜZ eklenmedi, onay bekliyor. Frontend nginx'inde `/api` proxy'si YOK; tarayıcı API'ye doğrudan `VITE_API_URL` ile gider (docker-tester'ın "nginx üzerinden 200" bulgusu SPA fallback'ti, yanlış okumaydı).
 
+- Faz 6 kararları: İlk demo seti internetten alınmıştı (Reddit r/LostAndFound ekran görüntüleri, katalog görselleri, yüz+isim+TC no içeren kartlar); tespit edildi, kullanılmadı, kullanıcı yeni fotoğrafları kendi çekti. raw/'da eski setten 4 dosya hâlâ duruyor (kullanılmıyor, git'e girmiyor; kullanıcının silmesi önerildi). `09.39.09 (1)` isim okunduğu için hariç. Sigara paketi + çakmak ve anahtar kodu görünen anahtarlar kullanıcı kararıyla sette tutuldu. Sorguları yapay zekâ yazdı, kullanıcı tek tek gözden geçirmedi. Seed/eval taslağı ayrıca onaylatılmadan çalıştırıldı (kullanıcı "seed/eval'i tamamla" dedi). "siyah sırt çantası top-3" kontrolü uygulanamadı (sette siyah sırt çantası yok).
+- Faz 6 açık konular (kullanıcıya): (a) YuNet saat kadranını yüz sandı (`watch_green_dial` bulanık); (b) API metin ve görsel arama için ortak eşik kullanıyor, görsel aramada yanlış ilanlar da "yüksek" görünüyor; (c) spec-guard: `earbud_case_white_open` ve `queries/094013_3` görsellerinde belirgin el var; `ballpoint_pen_white` üzerindeki baskı yazısının kişi/kullanıcı adı olmadığı doğrulanmalı.
+
 ## Fikir Havuzu (kapsam dışı, onay bekleyen)
+- Faz 6: görsel arama için ayrı eşik (MATCH_IMAGE_HIGH/MEDIUM); görsel skorlar 0.73–0.95 arasında, metin eşikleri anlamsız kalıyor. API değişikliği, onay gerekir.
 - Faz 5 spec-guard notları: (a) `.env.example` içindeki `ADMIN_TOKEN=change-me` tahmin edilebilir; README'de `openssl rand -hex 16` önerisi (Faz 9) veya backend'in `change-me`yi reddetmesi. (b) YuNet indirmesine SHA-256 doğrulaması. (c) Frontend servisine healthcheck. (d) `VITE_API_URL` derleme zamanında gömülür; değiştirmek için yeniden build gerekir, README'ye yazılacak (Faz 9).
 - Faz 3 spec-guard uyarısı (CLAUDE.md madde 6): Starlette `UploadFile` 1 MB üstü yüklemeleri sistem tmp'sine (`SpooledTemporaryFile`) yazabilir; bu geçici kopya bulanıklaştırılmamış olabilir. Kodda ele alınmadı. Öneri: Faz 5'te compose'a `tmpfs: /tmp` ekle (kalıcı diske hiç yazılmaz), README'ye bilinen sınırlama olarak yaz. Kullanıcı onayı bekliyor.
 - Faz 3 spec-guard notu: `ADMIN_TOKEN=change-me` örnek değerdir; README'de değiştirilmesi gerektiği yazılacak (Faz 9).
@@ -50,3 +54,4 @@
   - Uygulama açılışı (venv, TestClient): /health 200'e 4.6 sn. Docker `--network none`: 7 sn'de 200, face_blur=true.
   - Şablon karşılaştırması (13 renkte dokulu sentetik nesne, renk doğruluğu): tr 9/13, en 10/13, avg 11/13 → avg seçildi.
   - Faz 3 (docker, gerçek modeller, sentetik mavi şemsiye görseli, M4 Pro): `POST /api/items` 201, 0.149 sn, kategori=şemsiye (0.9996), renk=mavi, faces_blurred=0. `POST /api/search -F "query=mavi şemsiye"` 200, skor 0.3183 → "yüksek", took_ms 26.2. Aynı görselle arama: skor 1.0, took_ms 73.2. "siyah sırt çantası" sorgusu aynı ilana 0.2124 → "düşük". Boş arama 422 sözleşme metni; token'sız DELETE 403.
+- Faz 6 (M4 Pro, docker, gerçek modeller, 21 ilan): metin arama took_ms medyan ~29 ms, görsel ~73 ms, en yüksek 79 ms. TR metin R@1/R@5/MRR 0.524/0.857/0.657; EN 0.595/0.857/0.717; görsel (n=7) 0.857/1.000/0.886. demo_data/images 4.6 MB (28 JPEG, ≤1024 px, EXIF yok).

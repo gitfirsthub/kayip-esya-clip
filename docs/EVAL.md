@@ -12,7 +12,7 @@
 - 42 Türkçe metin sorgusu (ilan başına 2). Her birinin İngilizce karşılığı (`q_en`) da var, bu da 42 İngilizce sorgu eder.
 - 7 görsel sorgu: aynı eşyanın ilandaki fotoğraftan farklı bir açıdan çekilmiş fotoğrafı (`demo_data/images/queries/`).
 - Kullanılmayan dosyalar:
-  - İnternetten alınmış ilk setin tamamı (Reddit ekran görüntüleri, katalog görselleri, yüz ya da kimlik içeren kartlar). Bu set şartnameye aykırı olduğu için silindi. Klasörde kalan 4 dosyası (`09.00.23 (1)`, `09.00.23`, `09.00.24`, `09.00.24 (4)`) açılmadı ve kullanılmadı.
+  - İnternetten alınmış ilk setin tamamı (Reddit ekran görüntüleri, katalog görselleri, yüz ya da kimlik içeren kartlar). Bu set şartnameye aykırı olduğu için kullanılmadı. Kullanıcı dosyaların çoğunu sildi; `demo_data/raw/` içinde kalan 4 dosya (`09.00.23 (1)`, `09.00.23`, `09.00.24`, `09.00.24 (4)`) ne ilanlarda ne sorgularda kullanılıyor ve raw/ klasörü git'e girmiyor.
   - Yeni setten 1 fotoğraf: üzerinde okunabilir kişi ismi var.
 - Sorgular günlük dilde ve küçük harfle yazıldı. Marka ya da logo bilgisi içermiyor. Bazıları bilerek belirsiz bırakıldı ("kulaklığımı kaybettim", "anahtarlarımı kaybettim").
 - Sette benzer eşyalar yoğun: 3 siyah kulaklık parçası (kare kutu, oval kutu, tek kulaklık), 2 beyaz kulaklık parçası, 2 siyah çerçeveli gözlük, 3 kalem (tükenmez, versatil, ekran kalemi), 2 beyaz şarj eşyası (adaptör, powerbank), 3 çanta.
@@ -125,4 +125,4 @@ Uygulanamadı. Yeni sette siyah sırt çantası yok: çantalar gri melanj, gri-l
 - **Eşikler aynı veriyle ayarlandı ve aynı veriyle raporlandı.** Ayrı bir doğrulama kümesi yok, bu yüzden eşikler bu sete aşırı uyumlu (overfit) olabilir. Gerçek kullanımda gelen ilanlarla yeniden ölçülmeli.
 - **Siyah ve benzer eşyalar yoğun:** R@1 bu yüzden düşük. Bu demo setinin bir özelliği; kampüs genelindeki eşya dağılımını temsil ettiği varsayılamaz.
 - **İngilizce sorgular** Türkçe sorguların elle yapılmış çevirisi; bağımsız yazılmış İngilizce sorgular değil.
-- **Sorguları ilanları hazırlayan kişi yazdı.** Marka ve görselden okunan ayrıntılar kullanılmadı, yine de gerçek kullanıcı sorgularından daha "isabetli" olabilirler.
+- **Sorguları yapay zekâ (ml-engineer alt agent'ı) görselleri görerek yazdı; kullanıcı tek tek gözden geçirmedi.** PLAN kullanıcının yazdığı sorguları öngörüyordu. Marka ve görselden okunan ayrıntılar kullanılmadı, yine de gerçek kullanıcı sorgularından daha "isabetli" olabilirler; sonuçlar bu yönde iyimser olabilir.
