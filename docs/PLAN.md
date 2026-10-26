@@ -25,6 +25,7 @@ MATCH_HIGH=0.37                              # Faz 8 eval ile SEARCH_TEXT_WEIGHT
 MATCH_MEDIUM=0.31                             # Faz 6: 0.255
 MATCH_IMAGE_HIGH=0.87                        # görsel-görsel eşikleri (Faz 8, kullanıcı kararı; docs/EVAL.md)
 MATCH_IMAGE_MEDIUM=0.80                      # Faz 7'de bildirim eşleşmesi için eklendi
+TAG_MIN_CONFIDENCE=0.35                      # kategori güveni bunun altındaysa "diğer" (Faz 8)
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403); ADMIN_REJECT_WEAK_TOKENS=true iken change-me, ornek-* ve ADMIN_TOKEN_MIN_LEN'den kısa tokenlar yok sayılır (Faz 8)
 ADMIN_POINT_TOKENS={}                        # JSON {"<teslim noktası>":"<token>"}; nokta tokenı yalnızca o noktanın ilanlarını yönetir (Faz 7B)
 ADMIN_REJECT_WEAK_TOKENS=true                # false yalnızca yerel prototip (Faz 8, kullanıcı kararı)
@@ -82,7 +83,7 @@ Dosyalar: backend/app/ml/{encoder,face_blur,tagger,image_io}.py, backend/app/sto
 - image_io.py: `load_and_sanitize(bytes) -> PIL.Image` (verify ve yeniden açma, EXIF transpose, RGB'ye çevirme, EXIF'siz, MAX_IMAGE_SIDE'a küçültme); bozuk dosyada `InvalidImageError`. Pillow decompression-bomb koruması açık kalır.
 - encoder.py: `ClipEncoder` (image_model, text_model, cache, threads); `encode_images(list[Image]) -> np.ndarray[float32, N×512]` ve `encode_texts(list[str])`, ikisi de normalize; başlangıçta tek bir sahte girdiyle ısınma; torch.set_num_threads; `torch.inference_mode()`. Testler için aynı arayüzde `FakeEncoder` (deterministik hash tabanlı vektörler).
 - face_blur.py: `FaceBlurrer(model_path, score_threshold)`; `blur(Image) -> (Image, n_faces)`; YuNet giriş boyutunu her görsele göre setInputSize ile ayarla; kutuyu %20 genişlet; güçlü Gaussian blur (çekirdek kutu boyutuna oranlı, tek sayı) ve pikselleştirme. Model yoksa veya FACE_BLUR_ENABLED=false ise uygulama ÇÖKMEZ; /health'te face_blur=false raporlanır ve log uyarısı yazılır.
-- tagger.py: kategori ve renk istem embedding'leri başlangıçta bir kez hesaplanır ("a photo of a {en}" ve "bir {tr} fotoğrafı" şablonlarının ortalaması, normalize). `tag(img_emb) -> (category, score, color)`; softmax(100*cos) ile güven puanı; kategori güveni < 0.35 ise "diğer".
+- tagger.py: kategori ve renk istem embedding'leri başlangıçta bir kez hesaplanır ("a photo of a {en}" ve "bir {tr} fotoğrafı" şablonlarının ortalaması, normalize). `tag(img_emb) -> (category, score, color)`; softmax(100*cos) ile güven puanı; kategori güveni < TAG_MIN_CONFIDENCE (0.35) ise "diğer".
 - store.py: SQLite (WAL); items tablosu (PLAN'daki Item alanları + embedding BLOB); thread-safe yazma kilidi; bellekte (N×512) matris ve id listesi; `add`, `get`, `list`, `update_status`, `delete`, `search(vec, filters, top_k)`, yani numpy dot + filtre maskesi + argpartition.
 - smoke_ml.py: venv'de gerçek modellerle hızlı kontrol: 3 sahte renkli görsel ve 3 Türkçe sorgu; süreleri ve benzerlik matrisini yazdırır.
 Kabul: testler geçer; smoke_ml.py venv'de çalışır; tek görsel kodlama CPU'da < 1 sn; "siyah sırt çantası" sorgusu, kullanıcının çektiği bir sırt çantası fotoğrafında en üst 3'te (kullanıcı fotoğrafları yoksa bu kontrol Faz 6'ya ertelenir ve ILERLEME'ye not düşülür).

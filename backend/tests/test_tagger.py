@@ -76,3 +76,20 @@ def test_low_confidence_falls_back_to_other():
     assert category == "diğer"
     assert score < 0.35
     assert color in COLOR_NAMES
+
+
+def test_app_tagger_uses_tag_min_confidence_setting(tmp_path, monkeypatch):
+    from app.config import Settings
+    from app.main import load_components
+
+    class App:
+        class state:
+            pass
+
+    monkeypatch.setattr("app.ml.encoder.ClipEncoder", lambda *a, **k: FakeEncoder())
+    monkeypatch.setattr("app.main.backfill_text_index", lambda *a: None)
+    settings = Settings(data_dir=str(tmp_path), tag_min_confidence=0.9, ocr_enabled=False,
+                        face_model_path=str(tmp_path / "yok.onnx"))
+    load_components(App, settings)
+    assert App.state.tagger.min_confidence == 0.9
+    App.state.store.close()

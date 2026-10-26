@@ -49,7 +49,9 @@ def load_components(app: FastAPI, settings: Settings) -> None:
     )
     app.state.campus = campus
     app.state.encoder = encoder
-    app.state.tagger = Tagger(encoder, campus["categories"], campus["colors"])
+    app.state.tagger = Tagger(
+        encoder, campus["categories"], campus["colors"], min_confidence=settings.tag_min_confidence
+    )
     app.state.blurrer = FaceBlurrer(
         settings.face_model_path,
         settings.face_score_threshold,
