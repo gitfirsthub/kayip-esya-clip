@@ -30,6 +30,14 @@ def get_blurrer(request: Request):
     return request.app.state.blurrer
 
 
+def get_ocr(request: Request):
+    return request.app.state.ocr
+
+
+def get_brands(request: Request) -> frozenset[str]:
+    return request.app.state.brands
+
+
 def get_campus(request: Request) -> dict:
     return request.app.state.campus
 

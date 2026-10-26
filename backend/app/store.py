@@ -1,4 +1,5 @@
 """SQLite tabanlı ilan deposu ve bellek içi vektör arama."""
+import json
 import os
 import sqlite3
 import threading
@@ -23,6 +24,9 @@ FIELDS = (
     "category_score",
     "color",
     "faces_blurred",
+    "tags",
+    "redacted_regions",
+    "document_like",
     "status",
     "created_at",
 )
@@ -64,13 +68,31 @@ CREATE TABLE IF NOT EXISTS report_matches (
 );
 """
 
+# Faz 7A: eski veritabanlarına idempotent olarak eklenen sütunlar.
+MIGRATIONS = (
+    ("tags", "TEXT NOT NULL DEFAULT '[]'"),
+    ("redacted_regions", "INTEGER NOT NULL DEFAULT 0"),
+    ("document_like", "INTEGER NOT NULL DEFAULT 0"),
+)
+
 _COLUMNS = ", ".join(FIELDS)
 
 
 def _row_to_item(row: sqlite3.Row) -> dict:
     item = {key: row[key] for key in FIELDS}
     item["faces_blurred"] = int(item["faces_blurred"])
+    item["tags"] = json.loads(item["tags"])
+    item["redacted_regions"] = int(item["redacted_regions"])
+    item["document_like"] = bool(item["document_like"])
     return item
+
+
+def _to_db(key: str, value):
+    if key == "tags":
+        return json.dumps(value, ensure_ascii=False)
+    if key == "document_like":
+        return int(value)
+    return value
 
 
 class Store:
@@ -88,7 +110,15 @@ class Store:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(SCHEMA)
+        self._migrate()
         self._load_matrix()
+
+    def _migrate(self) -> None:
+        existing = {r["name"] for r in self._conn.execute("PRAGMA table_info(items)")}
+        with self._conn:
+            for column, ddl in MIGRATIONS:
+                if column not in existing:
+                    self._conn.execute(f"ALTER TABLE items ADD COLUMN {column} {ddl}")
 
     def _load_matrix(self) -> None:
         rows = self._conn.execute(
@@ -131,6 +161,9 @@ class Store:
             "category_score": float(fields["category_score"]),
             "color": fields["color"],
             "faces_blurred": int(fields.get("faces_blurred", 0)),
+            "tags": list(fields.get("tags", [])),
+            "redacted_regions": int(fields.get("redacted_regions", 0)),
+            "document_like": bool(fields.get("document_like", False)),
             "status": STATUS_WAITING,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -138,7 +171,7 @@ class Store:
             with self._conn:
                 self._conn.execute(
                     f"INSERT INTO items ({_COLUMNS}, embedding) VALUES ({', '.join('?' * (len(FIELDS) + 1))})",
-                    [item[k] for k in FIELDS] + [vec.tobytes()],
+                    [_to_db(k, item[k]) for k in FIELDS] + [vec.tobytes()],
                 )
             self._ids.append(item["id"])
             self._locations = np.append(self._locations, np.array([item["location"]], dtype=object))

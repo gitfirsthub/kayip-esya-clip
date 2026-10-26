@@ -5,6 +5,7 @@ class HealthResponse(BaseModel):
     status: str
     models_loaded: bool
     face_blur: bool
+    ocr: bool
     item_count: int
     version: str
 
@@ -29,6 +30,9 @@ class Item(BaseModel):
     category_score: float
     color: str
     faces_blurred: int
+    tags: list[str] = []
+    redacted_regions: int = 0
+    document_like: bool = False
     status: str
     created_at: str
 

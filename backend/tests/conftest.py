@@ -27,6 +27,22 @@ class FakeBlurrer:
         return img, self.faces
 
 
+class FakeOcr:
+    """OcrEngine arayüzü; tesseract olmadan sabit kelime listesi döndürür ya da hata fırlatır."""
+
+    def __init__(self, available: bool = True, words=None, error: Exception | None = None):
+        self.available = available
+        self.words = list(words or [])
+        self.error = error
+        self.calls = 0
+
+    def run_ocr(self, img):
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return list(self.words)
+
+
 def make_image_bytes(color=(30, 90, 200), size=(64, 48), fmt="JPEG", exif: bool = False) -> bytes:
     img = Image.new("RGB", size, color)
     buf = io.BytesIO()
@@ -50,7 +66,12 @@ def blurrer():
 
 
 @pytest.fixture
-def api(settings, blurrer, monkeypatch):
+def ocr():
+    return FakeOcr()
+
+
+@pytest.fixture
+def api(settings, blurrer, ocr, monkeypatch):
     monkeypatch.setattr("app.main.get_settings", lambda: settings)
     app = create_app()
     encoder = FakeEncoder()
@@ -64,6 +85,8 @@ def api(settings, blurrer, monkeypatch):
     app.dependency_overrides[deps.get_encoder] = lambda: encoder
     app.dependency_overrides[deps.get_tagger] = lambda: Tagger(encoder, campus["categories"], campus["colors"])
     app.dependency_overrides[deps.get_blurrer] = lambda: blurrer
+    app.dependency_overrides[deps.get_ocr] = lambda: ocr
+    app.dependency_overrides[deps.get_brands] = lambda: frozenset({"casio"})
     app.dependency_overrides[deps.get_store] = lambda: store
     app.dependency_overrides[deps.get_campus] = lambda: campus
     client = TestClient(app, raise_server_exceptions=False)

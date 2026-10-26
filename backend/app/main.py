@@ -34,7 +34,9 @@ def load_components(app: FastAPI, settings: Settings) -> None:
     """Kodlayıcı, yüz bulanıklaştırıcı, etiketleyici ve depoyu oluşturup app.state'e koyar."""
     from app.ml.encoder import ClipEncoder
     from app.ml.face_blur import FaceBlurrer
+    from app.ml.ocr import OcrEngine
     from app.ml.tagger import Tagger
+    from app.ml.tags import load_brands
     from app.store import Store
 
     campus = load_campus()
@@ -52,6 +54,13 @@ def load_components(app: FastAPI, settings: Settings) -> None:
         settings.face_score_threshold,
         enabled=settings.face_blur_enabled,
     )
+    # OCR_ENABLED=false yalnızca geliştirme içindir; o zaman metin tabanlı kişisel veri sansürlenmez.
+    app.state.ocr = (
+        OcrEngine(settings.ocr_langs, settings.ocr_timeout_s, settings.ocr_min_conf) if settings.ocr_enabled else None
+    )
+    if app.state.ocr is None:
+        logger.warning("OCR kapalı (OCR_ENABLED=false); görseldeki metin tabanlı kişisel veriler sansürlenmez.")
+    app.state.brands = load_brands()
     app.state.store = Store(settings.data_dir, dim=encoder.dim)
 
 
@@ -59,6 +68,7 @@ def _load(app: FastAPI, settings: Settings) -> None:
     try:
         load_components(app, settings)
         app.state.face_blur = app.state.blurrer.available
+        app.state.ocr_available = app.state.ocr is not None and app.state.ocr.available
         app.state.models_loaded = True
         app.state.ready = True
     except Exception:
@@ -70,6 +80,8 @@ def _load(app: FastAPI, settings: Settings) -> None:
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.basicConfig(level=settings.log_level.upper())
+    # tesseract'ın OpenMP iş parçacıkları torch ile çakışmasın (Dockerfile'da da ayarlı).
+    os.environ.setdefault("OMP_THREAD_LIMIT", str(settings.omp_thread_limit))
     threading.Thread(target=_load, args=(app, settings), daemon=True).start()
     yield
 
@@ -80,6 +92,7 @@ def create_app() -> FastAPI:
     app.state.ready = False
     app.state.models_loaded = False
     app.state.face_blur = False
+    app.state.ocr_available = False
     app.state.load_failed = False
     app.state.store = None
 
@@ -111,6 +124,7 @@ def create_app() -> FastAPI:
             status="ok",
             models_loaded=app.state.models_loaded,
             face_blur=app.state.face_blur,
+            ocr=app.state.ocr_available,
             item_count=app.state.store.count() if app.state.store else 0,
             version=VERSION,
         )

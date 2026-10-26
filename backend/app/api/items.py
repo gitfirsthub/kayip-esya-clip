@@ -6,13 +6,17 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from PIL import Image
 
 from app.api.uploads import read_upload
 from app.config import Settings, get_settings
-from app.deps import get_blurrer, get_campus, get_encoder, get_store, get_tagger, require_ready
+from app.deps import get_blurrer, get_brands, get_campus, get_encoder, get_ocr, get_store, get_tagger, require_ready
 from app.errors import ApiError
 from app.ml.face_blur import FaceBlurError
 from app.ml.image_io import InvalidImageError, load_and_sanitize
+from app.ml.ocr import OcrError
+from app.ml.pii import find_redactions, redact
+from app.ml.tags import extract_tags
 from app.schemas import Item, ItemList
 from app.store import STATUSES
 
@@ -34,6 +38,7 @@ MSG_DATE_FUTURE = "Bulunma tarihi gelecekte olamaz."
 MSG_DATE_OLD = "Bulunma tarihi en fazla 60 gün öncesi olabilir."
 MSG_BLUR_UNAVAILABLE = "Yüz bulanıklaştırma şu an kullanılamıyor; ilan kaydedilemedi."
 MSG_BLUR_FAILED = "Yüz bulanıklaştırma başarısız oldu; ilan kaydedilemedi."
+MSG_OCR_FAILED = "Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."
 MSG_NOT_FOUND = "İlan bulunamadı."
 MSG_BAD_STATUS = "Geçersiz durum."
 MSG_BAD_CATEGORY = "Geçersiz kategori."
@@ -48,6 +53,17 @@ def to_item(record: dict) -> Item:
     data = {k: v for k, v in record.items() if k != "image_path"}
     data["image_url"] = f"/uploads/{record['image_path']}"
     return Item(**data)
+
+
+def redact_and_shrink(img: Image.Image, words, faces: int, brands, max_side: int):
+    """Kişisel veri kutularını siyahla kapatır, güvenli etiketleri çıkarır ve görseli max_side'a küçültür."""
+    redaction = find_redactions(words, faces, img.size)
+    if redaction.boxes:
+        img = redact(img, redaction.boxes)
+    tags = [] if redaction.document_like else extract_tags(words, redaction.boxes, brands)
+    if max(img.size) > max_side:
+        img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    return img, redaction, tags
 
 
 def parse_found_date(value: str | None) -> date:
@@ -100,23 +116,39 @@ async def create_item(
     encoder=Depends(get_encoder),
     tagger=Depends(get_tagger),
     blurrer=Depends(get_blurrer),
+    ocr=Depends(get_ocr),
+    brands: frozenset[str] = Depends(get_brands),
 ):
     if image is None:
         raise ApiError(422, MSG_NO_IMAGE)
     data = await read_upload(image, settings.max_upload_mb)
     fields = validate_fields(title, description, location, found_date, dropoff_point, campus)
+    # OCR açıkken çalışma kopyası OCR_MAX_SIDE'ta tutulur; küçük metin okunabilsin.
+    work_side = max(settings.ocr_max_side, settings.max_image_side) if settings.ocr_enabled else settings.max_image_side
     try:
-        img = await run_in_threadpool(load_and_sanitize, data, settings.max_image_side)
+        img = await run_in_threadpool(load_and_sanitize, data, work_side)
     except InvalidImageError as exc:
         raise ApiError(400, exc.message)
 
     # Bulanıklaştırılmamış görsel hiçbir koşulda saklanmaz.
     if not blurrer.available:
         raise ApiError(503, MSG_BLUR_UNAVAILABLE)
+    # Sansürlenmemiş metin de saklanmaz (fail-closed). OCR çıktısı yalnızca bu fonksiyonda yaşar;
+    # loglanmaz, diske yazılmaz, yanıta ve hata mesajına girmez.
+    words = []
+    if settings.ocr_enabled:
+        if ocr is None or not ocr.available:
+            raise ApiError(503, MSG_OCR_FAILED)
+        try:
+            words = await run_in_threadpool(ocr.run_ocr, img)
+        except OcrError:
+            raise ApiError(503, MSG_OCR_FAILED)
     try:
         img, faces = await run_in_threadpool(blurrer.blur, img)
     except FaceBlurError:
         raise ApiError(503, MSG_BLUR_FAILED)
+    img, redaction, tags = await run_in_threadpool(redact_and_shrink, img, words, faces, brands, settings.max_image_side)
+    del words
 
     filename = f"{uuid.uuid4().hex}.jpg"
     directory = uploads_dir(settings)
@@ -128,7 +160,8 @@ async def create_item(
         category, category_score, color = tagger.tag(embedding)
         record = store.add(
             {**fields, "image_path": filename, "category": category, "category_score": category_score,
-             "color": color, "faces_blurred": faces},
+             "color": color, "faces_blurred": faces, "tags": tags,
+             "redacted_regions": len(redaction.boxes), "document_like": redaction.document_like},
             embedding,
         )
     except Exception:

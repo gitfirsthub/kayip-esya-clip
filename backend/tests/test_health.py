@@ -19,6 +19,7 @@ def test_health_ok_when_ready():
         "status": "ok",
         "models_loaded": True,
         "face_blur": True,
+        "ocr": False,
         "item_count": 0,
         "version": "0.1.0",
     }

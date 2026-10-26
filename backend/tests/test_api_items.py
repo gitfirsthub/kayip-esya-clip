@@ -40,7 +40,8 @@ def test_create_item_success(api, blurrer):
     body = r.json()
     assert set(body) == {
         "id", "title", "description", "location", "found_date", "dropoff_point", "image_url",
-        "category", "category_score", "color", "faces_blurred", "status", "created_at",
+        "category", "category_score", "color", "faces_blurred", "tags", "redacted_regions", "document_like",
+        "status", "created_at",
     }
     assert body["title"] == "Mavi şemsiye"
     assert body["status"] == "bekliyor"
