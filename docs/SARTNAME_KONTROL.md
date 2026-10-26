@@ -29,6 +29,7 @@
 - [ ] OCR tamamen yerel, harici servis yok; sistem bağımlılıkları Dockerfile'da
 - [ ] Metin tabanlı kişisel veriler (TC, telefon, e-posta, IBAN, öğrenci no) görselden kalıcı olarak silinir
 - [ ] OCR ham metni loglanmaz, saklanmaz, API'den dönmez
+- [ ] Yönetici tokenları (ADMIN_TOKEN, ADMIN_POINT_TOKENS) yalnızca ortam değişkeninden gelir; depoda gerçek değer yok, loglanmaz, API yanıtında dönmez
 ## 7. Git
 - [ ] Küçük, sık, anlamlı commit'ler; mesajlar açıklayıcı
 - [ ] En az 5 farklı güne yayılma (organizatörle teyit edilecek)

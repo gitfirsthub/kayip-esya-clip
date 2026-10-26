@@ -19,6 +19,7 @@ GTÜ kampüsünde bulunan eşyaların fotoğrafını yükleyen kişi ile eşyas�
 ## KAPSAM SINIRI
 - Yalnızca docs/PLAN.md'deki fazlar ve oradaki kabul kriterleri uygulanır. Plan dışı özellik, kütüphane, servis veya sayfa EKLENMEZ. Fikir varsa docs/ILERLEME.md "Fikir Havuzu" bölümüne yazılır ve kullanıcıya sorulur.
 - İzinli bağımlılıklar: Backend: fastapi, uvicorn[standard], python-multipart, pydantic, pydantic-settings, sentence-transformers, torch (CPU), numpy, pillow, opencv-python-headless, pytesseract, pytest, httpx. Sistem paketleri (Dockerfile): tesseract-ocr, tesseract-ocr-tur, tesseract-ocr-eng. Frontend: react, react-dom, vite, @vitejs/plugin-react, typescript. Bu liste dışına çıkmak kullanıcı onayı ister.
+- Yönetici paneli (Faz 7B, kullanıcı onaylı): teslim noktası başına ortam değişkeninden okunan token (ADMIN_POINT_TOKENS), kullanıcı hesabı/oturum/veritabanında kimlik YOK.
 - Yerel LLM, kimlik doğrulama sistemi, harici veritabanı sunucusu, bildirim/e-posta servisi ve mobil uygulama KAPSAM DIŞIDIR.
 
 ## Teknik kararlar (değiştirmeden önce sor)

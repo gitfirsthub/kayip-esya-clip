@@ -21,6 +21,7 @@ TORCH_NUM_THREADS=4
 MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
 MATCH_MEDIUM=0.255
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403)
+ADMIN_POINT_TOKENS={}                        # JSON {"<teslim noktası>":"<token>"}; nokta tokenı yalnızca o noktanın ilanlarını yönetir (Faz 7B)
 OCR_ENABLED=true                             # Faz 7A; false yalnızca geliştirme amaçlı
 OCR_LANGS=tur+eng
 OCR_MAX_SIDE=1600
@@ -45,8 +46,10 @@ LOG_LEVEL=INFO
 - POST /api/search (multipart): query (0–200), image (opsiyonel), location (opsiyonel filtre), category (opsiyonel filtre), include_returned (bool, varsayılan false), top_k (1–50, varsayılan 12).
   query ve image'den en az biri zorunlu, yoksa 422 {"detail":"Aramak için bir açıklama yazın veya fotoğraf yükleyin."}.
   İkisi birden varsa: s = 0.5*s_text + 0.5*cos(q_img, item). Faz 7A: s_text = (1-w)*cos(q_text, item_img) + w*cos(q_text, item_text) + etiket bonusu (w = SEARCH_TEXT_WEIGHT; sorgudaki marka/model sözcüğü ilanın etiketiyle eşleşirse eşleşme başına TAG_BONUS, en çok TAG_BONUS_MAX). Yanıt: {results:[{item, score, match_level:"yüksek"|"orta"|"düşük"}], took_ms}. Arama görseli diske KAYDEDİLMEZ.
-- PATCH /api/items/{id}/status  header X-Admin-Token, body {"status":"teslim_edildi"|"bekliyor"} → Item | 403
-- DELETE /api/items/{id}  header X-Admin-Token → 204 | 403
+- PATCH /api/items/{id}/status  header X-Admin-Token, body {"status":"teslim_edildi"|"bekliyor"} → Item | 403 | 404 (Faz 7B: nokta tokenıyla başka noktanın ilanı da 404)
+- DELETE /api/items/{id}  header X-Admin-Token → 204 | 403 | 404 (aynı kapsam kuralı; görsel dosyası da silinir)
+- GET /api/admin/me  header X-Admin-Token → {"scope": "<teslim noktası>"|null} | 403 (null = ADMIN_TOKEN, tüm noktalar)
+- GET /api/admin/items?status=&limit=20&offset=0  header X-Admin-Token → {items,total}, yalnızca kapsamdaki noktanın ilanları | 403
 - /uploads/<dosya>.jpg statik (yalnızca bulanıklaştırılmış kopyalar)
 - Hata biçimi her yerde {"detail":"<Türkçe mesaj>"}; 413 (dosya büyük), 415 (tür desteklenmiyor), 400 (görsel açılamadı), 422 (doğrulama), 503 (model yükleniyor), 500 (genel; iz dökümü sızdırılmaz).
 
@@ -161,7 +164,11 @@ Elle doğrulama (kullanıcı yapar): backend/scripts/try_redact.py <girdi> <çı
 Kabul: testler yeşil; docker build OK; --network none ile çalışıyor; sentetik görsellerde PII kapanıyor; EVAL.md önce/sonra tablosu var; temiz klon testi (/temiz-klon-testi) yeşil; spec-guard raporunda kritik ihlal yok.
 
 ## Faz 7B: Frontend görsel cilası
-Spesifikasyon kullanıcı tarafından sonraki oturumda verilecek. O zamana kadar bu fazda hiçbir değişiklik yapılmaz.
+Cilalama fazı (CSS + TSX yapısı; yeni npm paketi yok; sistem yazı tipi; metinler Türkçe).
+- Tasarım belirteçleri (renk, 4/8 px boşluk, 5 kademe tipografi, 2 kademe köşe, 2 kademe gölge), başlık çubuğu, segmented sekmeler, kart ızgarası + iskelet yükleme, sürükle-bırak fotoğraf alanı, boş/hata/başarı durumları, mobil (360 px'te yatay kaydırma yok) ve WCAG AA erişilebilirlik.
+- Faz 7A alanları (tags, redacted_regions, document_like) arayüzde gösterilir.
+- Kullanıcı kararı ile eklendi: **Yönetici sekmesi**. Her teslim noktası kendi tokenıyla (ADMIN_POINT_TOKENS) o noktaya teslim edilen ilanların durumunu değiştirir ("teslim edildi"/"bekliyor") ve sahibine teslim edilen ilanı kaldırır. Token yalnızca tarayıcı belleğinde tutulur. Kimlik doğrulama sistemi DEĞİLDİR (kullanıcı hesabı yok).
+- Doğrulama: `npm run build` + `npx tsc --noEmit`; 1440/768/375 px görünümlerini kullanıcı kontrol eder; bir tur geri bildirim.
 
 ## Faz 8: Şartname denetimi ve inceleme (Opus)
 - spec-guard agent'ı docs/SARTNAME_KONTROL.md'deki her maddeyi kanıtla (dosya:satır veya komut çıktısı) doğrular.
