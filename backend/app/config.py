@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     match_high: float = 0.37
     match_medium: float = 0.31
     match_image_high: float = 0.87
-    tag_min_confidence: float = 0.35  # kategori güveni bunun altındaysa "diğer"
     match_image_medium: float = 0.80
+    tag_min_confidence: float = 0.35  # kategori güveni bunun altındaysa "diğer"
     admin_token: str = ""
     admin_point_tokens: str = ""  # JSON: {"<teslim noktası>": "<token>"}
     # true: örnek değerli ve admin_token_min_len'den kısa tokenlar yetki vermez. false yalnızca yerel prototip içindir.

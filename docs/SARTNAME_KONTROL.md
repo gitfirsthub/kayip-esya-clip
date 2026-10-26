@@ -25,7 +25,7 @@
 ## 6. Güvenlik ve veri
 - [x] Gizli bilgi depoda yok; .env git'te yok; .env.example var
 - [x] Yüzler bulanıklaştırılıyor, orijinal saklanmıyor, EXIF siliniyor
-- [ ] Demo görselleri kendi çekimimiz, yüz içermiyor
+- [x] Demo görselleri kendi çekimimiz, yüz içermiyor
 - [x] OCR tamamen yerel, harici servis yok; sistem bağımlılıkları Dockerfile'da
 - [x] Metin tabanlı kişisel veriler (TC, telefon, e-posta, IBAN, öğrenci no) görselden kalıcı olarak silinir
 - [x] OCR ham metni loglanmaz, saklanmaz, API'den dönmez
@@ -42,4 +42,4 @@
 
 ## Faz 8 denetim notu (2026-10-26)
 [x] maddeler spec-guard tarafından kanıtla (dosya:satır veya komut çıktısı) doğrulandı; ayrıntı docs/ILERLEME.md "Faz 8 denetimi".
-Açık kalanlar: README, AI kullanımı bölümü ve adresler (Faz 9); video ve public depo (kullanıcı); 5 gün kuralı (kullanıcı kararıyla dikkate alınmıyor; gerçek durum 2 gün); ekip maddesi (tek yazar, ekip büyüklüğü kullanıcıya soruldu); demo görselleri (yüz yok, ama 2 karede el, anahtar kodu ve kalem baskısı kullanıcı kararını bekliyor).
+Açık kalanlar: README, AI kullanımı bölümü ve adresler (Faz 9); video ve public depo (kullanıcı); 5 gün kuralı (kullanıcı kararıyla dikkate alınmıyor; gerçek durum 2 gün); ekip maddesi (tek yazar, ekip büyüklüğü kullanıcıya soruldu); demo görselleri: yüz yok; 2 karedeki el, anahtar kodu ve kalem baskısı kullanıcı tarafından sorun sayılmadı (madde [x]). Ekip tek kişi; commit gün dağılımı için kullanıcı organizatörle sorun olmadığını bildirdi.
