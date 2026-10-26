@@ -43,3 +43,11 @@ Kayıt şablonu:
 - Yapay zekânın ürettiği: deps.py, ApiError, meta/items/search/admin uçları, yükleme sınırı (parça parça okuma, 413), Pillow biçim doğrulaması (415), /uploads statik, 45 yeni test (toplam 83); gerçek modelle curl denemesi.
 - Yanlış veya eksik çıkan ve nasıl düzeltildiği: (1) macOS `sed` çok satırlı import eklemeyi reddetti; ItemList içe aktarımı eksik kaldı, testler NameError verdi, Python ile düzeltildi. (2) `include_returned` testi henüz yazılmamış yönetici ucuna bağlıydı; admin commit'ine taşındı. (3) Sözleşmede olmayan hata metinleri, yüz modeli yokken davranış, image_url biçimi ve geçersiz filtre tahmin edilmedi, kullanıcıya soruldu.
 - İnsanın (geliştiricinin) elle yaptığı veya karar verdiği: yüz modeli yokken 503, göreli image_url, geçersiz filtrede 422, hata metinlerinin onayı; try_blur.py ile kendi yüzünde bulanıklaştırma doğrulaması.
+
+## Faz 4: Frontend (2026-10-26)
+- Araç ve model: Claude Code (Sonnet 5.5); arayüz frontend-dev alt agent'ı, denetim spec-guard alt agent'ı
+- Kullanılan özellikler: plan modu, /faz komutu, alt agent'a devir ve ana oturumda sözleşme denetimi, arka plan agent'ları, docker ile CORS ve nginx denemesi
+- Örnek istem: "Bu fazı frontend-dev alt agent'ına devret; sen API sözleşmesine uyumu denetle. Önce types.ts'i PLAN'daki Item ve arama yanıtına birebir uygun yaz; api.ts tek bir fetch sarmalayıcısı olsun (timeout 60 sn, detail alanını okuyan hata dönüşümü, 503 için özel mesaj)."
+- Yapay zekânın ürettiği: Vite+React+TS iskeleti, types.ts, api.ts, üç sekme ve bileşenleri, düz CSS, nginx çok aşamalı Dockerfile; 6 commit. Ana oturum: types.ts ↔ schemas.py karşılaştırması, `fetch` ve adres grep'i, build, backend ile CORS preflight.
+- Yanlış veya eksik çıkan ve nasıl düzeltildiği: Agent'ın raporunda tarayıcı doğrulaması yoktu (yalnızca nginx 200); bu açıkça "doğrulanmadı" olarak işaretlendi, kontrol listesi kullanıcıya verildi. `image_url` göreli olduğu için görsel adresi API adresiyle birleştirildi (Faz 3 kararının sonucu). spec-guard'ın "build kanıtı yok" uyarısı, build ve imajın ana oturumda yeniden çalıştırılmasıyla kapatıldı.
+- İnsanın (geliştiricinin) elle yaptığı veya karar verdiği: Faz isteminin içeriği (renkler, rozet kuralları, katlanmış düşük sonuçlar), plan ve tip paketlerinin onayı; tarayıcıda elle test (bekliyor).
