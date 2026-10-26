@@ -32,7 +32,7 @@ services:
       OCR_TIMEOUT_S: ${OCR_TIMEOUT_S:-8}
       OCR_MIN_CONF: ${OCR_MIN_CONF:-30}
       OMP_THREAD_LIMIT: ${OMP_THREAD_LIMIT:-1}
-      SEARCH_TEXT_WEIGHT: ${SEARCH_TEXT_WEIGHT:-0.0}
+      SEARCH_TEXT_WEIGHT: ${SEARCH_TEXT_WEIGHT:-0.1}
       TAG_BONUS: ${TAG_BONUS:-0.05}
       TAG_BONUS_MAX: ${TAG_BONUS_MAX:-0.10}
       # Çalışma zamanında bulut/ağ erişimi olmasın; .env bunu ezemez.

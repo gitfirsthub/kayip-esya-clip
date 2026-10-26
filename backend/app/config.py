@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ocr_timeout_s: float = 8
     ocr_min_conf: float = 30
     omp_thread_limit: int = 1
-    search_text_weight: float = 0.0
+    search_text_weight: float = 0.1
     tag_bonus: float = 0.05
     tag_bonus_max: float = 0.10
     log_level: str = "INFO"
