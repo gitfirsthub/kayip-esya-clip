@@ -65,6 +65,13 @@ def test_store_failure_on_upload_removes_saved_file(api):
     assert os.listdir(directory) == []
 
 
+def test_missing_upload_on_fresh_install_is_404(api):
+    # Henüz hiç ilan yüklenmemiş yeni kurulum: dizin açılışta oluşur, istek 500 değil 404 olur.
+    r = api.get("/uploads/olmayan.jpg")
+    assert r.status_code == 404
+    assert r.json() == {"detail": "Kaynak bulunamadı."}
+
+
 def test_uploads_path_traversal_blocked(api):
     r = api.get("/uploads/../app.db")
     assert r.status_code == 404

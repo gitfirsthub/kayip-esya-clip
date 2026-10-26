@@ -130,9 +130,14 @@ def create_app() -> FastAPI:
     app.include_router(search_api.router)
     app.include_router(lost_reports_api.router)
     app.include_router(admin_api.router)
+    # Dizin yoksa StaticFiles her istekte RuntimeError (500) verir; yeni kurulumda 404 dönsün.
+    try:
+        os.makedirs(items_api.uploads_dir(settings), exist_ok=True)
+    except OSError:
+        logger.warning("Yükleme dizini oluşturulamadı; ilk yüklemede yeniden denenecek.")
     app.mount(
         "/uploads",
-        StaticFiles(directory=os.path.join(settings.data_dir, "uploads"), check_dir=False),
+        StaticFiles(directory=items_api.uploads_dir(settings), check_dir=False),
         name="uploads",
     )
 
