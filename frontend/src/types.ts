@@ -87,3 +87,13 @@ export interface ReportMatches {
   query_text: string;
   matches: SearchResult[];
 }
+
+export interface AdminMe {
+  scope: string | null; // null = tüm noktalar
+}
+
+export interface AdminListParams {
+  status?: ItemStatus;
+  limit?: number;
+  offset?: number;
+}

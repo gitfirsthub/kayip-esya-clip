@@ -1,4 +1,6 @@
 import type {
+  AdminListParams,
+  AdminMe,
   CreateItemParams,
   Item,
   ItemList,
@@ -6,6 +8,7 @@ import type {
   LostReportCreated,
   LostReportParams,
   Meta,
+  ItemStatus,
   ReportMatches,
   SearchParams,
   SearchResponse,
@@ -136,4 +139,46 @@ export function validateImage(file: File, maxMb: number): string | null {
     return `Dosya çok büyük. En fazla ${maxMb} MB yükleyebilirsiniz.`;
   }
   return null;
+}
+
+// ---- Yönetici uçları (Faz 7B). Token yalnızca çağıran tarafın belleğinden gelir; saklanmaz, loglanmaz.
+function adminHeaders(token: string, extra: Record<string, string> = {}): Record<string, string> {
+  return { "X-Admin-Token": token, ...extra };
+}
+
+export function adminMe(token: string): Promise<AdminMe> {
+  return request<AdminMe>("/api/admin/me", { headers: adminHeaders(token) });
+}
+
+export function adminList(token: string, params: AdminListParams = {}): Promise<ItemList> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.limit !== undefined) qs.set("limit", String(params.limit));
+  if (params.offset !== undefined) qs.set("offset", String(params.offset));
+  const suffix = qs.toString();
+  return request<ItemList>(`/api/admin/items${suffix ? `?${suffix}` : ""}`, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function adminSetStatus(token: string, id: string, status: ItemStatus): Promise<Item> {
+  return request<Item>(`/api/items/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    headers: adminHeaders(token, { "Content-Type": "application/json" }),
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function adminDelete(token: string, id: string): Promise<void> {
+  try {
+    await request<unknown>(`/api/items/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: adminHeaders(token),
+    });
+  } catch (err) {
+    // Sözleşme: başarıda 204 (gövde yok). request() gövdeyi JSON okumaya çalışıp 204'te hata
+    // fırlatır; yalnızca bu durumu başarı sayarız.
+    if (err instanceof ApiError && err.status === 204) return;
+    throw err;
+  }
 }

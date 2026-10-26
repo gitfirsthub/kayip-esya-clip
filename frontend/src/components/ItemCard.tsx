@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { imageSrc } from "../api";
 import type { Item, MatchLevel } from "../types";
 import MatchBadge from "./MatchBadge";
@@ -9,6 +9,7 @@ interface Props {
   score?: number;
   level?: MatchLevel;
   showTags?: boolean;
+  actions?: ReactNode;
 }
 
 function PinIcon() {
@@ -49,7 +50,7 @@ function BoxIcon() {
   );
 }
 
-export default function ItemCard({ item, score, level, showTags }: Props) {
+export default function ItemCard({ item, score, level, showTags, actions }: Props) {
   const [imgDone, setImgDone] = useState(false);
   const tags = item.tags ?? [];
 
@@ -121,6 +122,7 @@ export default function ItemCard({ item, score, level, showTags }: Props) {
         {item.document_like && (
           <p className="doc-note">Belge benzeri görsel: yazılar gizlendi</p>
         )}
+        {actions && <div className="card-actions">{actions}</div>}
       </div>
     </article>
   );

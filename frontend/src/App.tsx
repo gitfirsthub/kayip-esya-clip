@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMeta } from "./api";
+import AdminTab, { type AdminSession } from "./components/AdminTab";
 import FoundTab from "./components/FoundTab";
 import ErrorBox from "./components/ErrorBox";
 import ItemsTab from "./components/ItemsTab";
@@ -12,6 +13,7 @@ const TABS: TabDef[] = [
   { id: "search", label: "Eşyamı Kaybettim" },
   { id: "found", label: "Eşya Buldum" },
   { id: "items", label: "Tüm İlanlar" },
+  { id: "admin", label: "Yönetici" },
 ];
 
 export default function App() {
@@ -19,6 +21,8 @@ export default function App() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Yönetici tokenı yalnızca bellekte; sayfa yenilenince veya çıkışta silinir.
+  const [session, setSession] = useState<AdminSession | null>(null);
 
   const loadMeta = useCallback(async () => {
     setLoading(true);
@@ -85,6 +89,9 @@ export default function App() {
           {meta && active === "search" && <SearchTab meta={meta} />}
           {meta && active === "found" && <FoundTab meta={meta} />}
           {meta && active === "items" && <ItemsTab />}
+          {meta && active === "admin" && (
+            <AdminTab session={session} onLogin={setSession} onLogout={() => setSession(null)} />
+          )}
         </div>
       </main>
     </div>
