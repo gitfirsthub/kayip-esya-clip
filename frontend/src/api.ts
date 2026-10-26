@@ -3,7 +3,10 @@ import type {
   Item,
   ItemList,
   ListParams,
+  LostReportCreated,
+  LostReportParams,
   Meta,
+  ReportMatches,
   SearchParams,
   SearchResponse,
 } from "./types";
@@ -105,6 +108,18 @@ export function createItem(params: CreateItemParams): Promise<Item> {
   form.append("found_date", params.found_date);
   form.append("dropoff_point", params.dropoff_point);
   return request<Item>("/api/items", { method: "POST", body: form });
+}
+
+export function createLostReport(params: LostReportParams): Promise<LostReportCreated> {
+  const form = new FormData();
+  if (params.query) form.append("query", params.query);
+  if (params.image) form.append("image", params.image);
+  if (params.location) form.append("location", params.location);
+  return request<LostReportCreated>("/api/lost-reports", { method: "POST", body: form });
+}
+
+export function getReportMatches(code: string): Promise<ReportMatches> {
+  return request<ReportMatches>(`/api/lost-reports/${encodeURIComponent(code)}/matches`);
 }
 
 // Göreli image_url'yi API adresiyle birleştirir.

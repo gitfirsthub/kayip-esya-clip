@@ -1,10 +1,11 @@
 import { useId, useState } from "react";
-import { searchItems } from "../api";
+import { createLostReport, searchItems } from "../api";
 import type { Meta, SearchResponse } from "../types";
 import ErrorBox from "./ErrorBox";
 import ImagePicker from "./ImagePicker";
 import ItemCard from "./ItemCard";
 import Spinner from "./Spinner";
+import TrackingBox from "./TrackingBox";
 
 export default function SearchTab({ meta }: { meta: Meta }) {
   const uid = useId();
@@ -15,6 +16,25 @@ export default function SearchTab({ meta }: { meta: Meta }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [reporting, setReporting] = useState(false);
+  const [trackingCode, setTrackingCode] = useState<string | null>(null);
+
+  async function onReport() {
+    if (!query.trim() && !image) {
+      setError("Bildirim için bir açıklama yazın veya fotoğraf yükleyin.");
+      return;
+    }
+    setReporting(true);
+    setError(null);
+    try {
+      const res = await createLostReport({ query: query.trim(), image, location });
+      setTrackingCode(res.tracking_code);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Beklenmeyen bir hata oluştu.");
+    } finally {
+      setReporting(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +123,26 @@ export default function SearchTab({ meta }: { meta: Meta }) {
         <button className="btn" type="submit" disabled={loading}>
           {loading ? "Aranıyor…" : "Ara"}
         </button>
+        <button
+          className="btn btn-secondary"
+          type="button"
+          disabled={loading || reporting}
+          onClick={() => void onReport()}
+        >
+          {reporting ? "Kaydediliyor…" : "Bulunursa haber almak için bildirim bırak"}
+        </button>
       </form>
+
+      {trackingCode && (
+        <div className="panel tracking-code" role="status">
+          <p>Takip kodunuz:</p>
+          <p className="code">{trackingCode}</p>
+          <p className="desc">
+            Bu kodu not alın; bir daha gösterilmez. İletişim bilgisi toplanmaz. Eşyanıza benzer bir ilan
+            eklenince aşağıdaki kutudan kodunuzla kontrol edebilirsiniz.
+          </p>
+        </div>
+      )}
 
       <ErrorBox message={error} />
       {loading && <Spinner label="Aranıyor…" />}
@@ -139,6 +178,8 @@ export default function SearchTab({ meta }: { meta: Meta }) {
           )}
         </div>
       )}
+
+      <TrackingBox />
     </section>
   );
 }

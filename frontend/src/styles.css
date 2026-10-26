@@ -336,3 +336,15 @@ textarea {
   gap: 12px;
   margin: var(--gutter) 0;
 }
+
+.tracking-code .code {
+  font-family: ui-monospace, monospace;
+  font-size: 1.6rem;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+.tracking-box {
+  margin-top: 2rem;
+}

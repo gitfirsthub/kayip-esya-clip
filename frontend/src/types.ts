@@ -68,3 +68,19 @@ export interface CreateItemParams {
   found_date: string;
   dropoff_point: string;
 }
+
+export interface LostReportParams {
+  query?: string;
+  image?: File | null;
+  location?: string;
+}
+
+export interface LostReportCreated {
+  tracking_code: string;
+}
+
+export interface ReportMatches {
+  created_at: string;
+  query_text: string;
+  matches: SearchResult[];
+}
