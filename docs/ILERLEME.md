@@ -12,7 +12,7 @@
 | 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
 | 7A PII sansürü ve yerel OCR | ✅ (elle doğrulama kullanıcıda) | 2026-10-26 | Tesseract (tur+eng) ile OCR, TC/telefon/e-posta/IBAN/kart/6+ rakam siyah bantla kapatılır, kimlik benzeri belgede tüm metin; fail-closed 503; izin listeli marka/model etiketleri; ilan metin indeksi + etiket bonusu (SEARCH_TEXT_WEIGHT=0.0, EVAL'e göre); 210 test geçti (venv, 3 tesseract testi atlandı) / 212 geçti (imaj içinde gerçek tesseract); temiz klon ve `--network none` geçti; spec-guard kritik ihlal yok |
 | 7B Frontend görsel cilası + Yönetici paneli | ✅ (kullanıcı 2026-10-26'da kabul etti) | 2026-10-26 | Tasarım belirteçleri, başlık/segmented sekmeler, kart ızgarası + iskelet, sürükle-bırak yükleme, boş/hata durumları, etiket ve "N bölge gizlendi" çipleri, mobil/AA (23 kontrast çifti ölçüldü, hepsi geçti); Yönetici sekmesi + teslim noktası başına token (ADMIN_POINT_TOKENS, GET /api/admin/me ve /api/admin/items); 9 yeni backend testi (219 geçti); build ve tsc hatasız; metin ağırlığı kullanıcı seçimiyle 0.1 |
-| 8 Denetim | 🟡 | 2026-10-26 | Başladı |
+| 8 Denetim | ✅ (kullanıcı kararları açık) | 2026-10-26 | spec-guard (gerçek ❌ yok), code-review + güvenlik incelemesi tüm depo; 2 kritik + 8 önemli bulgu ayrı commit'lerle düzeltildi; venv 236 geçti (+ bilinen macOS düşüşü), imajda 237 geçti; elle hata senaryoları tablosu aşağıda; kapsam kayması yok; yasaklı grep boş |
 | 9 Dokümantasyon | ⬜ | | |
 
 ## Açık sorular (kullanıcıya)
@@ -41,7 +41,47 @@
 - Faz 7A uygulama notları: OCR çalışma kopyası OCR_MAX_SIDE (1600) üzerinde; yüz bulanıklaştırma da artık bu kopyada çalışıyor, sonra MAX_IMAGE_SIDE'a küçültülüyor. 2x büyütme yalnızca uzun kenar ≤ 1000 px ise. Model kodu etiketleri tiresiz saklanır ("fx-991" → "fx991"). brands.txt 148 marka (ml-engineer üretti; KULLANICI GÖZDEN GEÇİRECEK; `stanley` kişi adı olarak da kullanılır, şartname örneği olduğu için listede). `backend/tests/test_ocr.py`, `test_text_index.py`, `test_api_items_ocr.py` PLAN'da adı geçmeyen ama plana uygun test dosyaları. `try_redact.py` kullanıcı isteğiyle eklendi.
 - Faz 7A bulguları: (a) Sentetik kimlik testinde tesseract kutuları glif kenarından 1–2 px dar; 4 px genişletmeye rağmen "KARTI" satırında kenar yumuşatma piksellerinin ~%1'i kutu dışında kaldı (okunabilir değil; numara satırı %100 kapalı). Spesifikasyondaki 4 px değiştirilmedi, kullanıcıya soruldu. (b) Saat ilanı (YuNet kadranı yüz sanıyor + ≥ 8 OCR kelimesi) belge benzeri sayıldı, 12 bölge kapatıldı. (c) Demo setinde hiç etiket çıkmadı; etiket bonusu yalnızca testlerle doğrulandı. (d) Fazla sansür bilinçli: tarihler (8 hane) ve uzun seri numaraları da kapanır. (e) spec-guard: pytesseract OCR girdisini (sansür öncesi gri kopya) ve tesseract çıktısını işlem süresince OS temp dizinine yazar; compose'ta `/tmp` tmpfs olduğu için diske değil RAM'e gider, ama compose dışı `docker run`'da konteyner katmanına yazılır. README'de (Faz 9) bilinen sınırlama olarak yazılacak. (f) README notu (Faz 9, docs-writer): `OCR_ENABLED=false` yalnızca geliştirme içindir, kapalıyken metin tabanlı kişisel veri sansürlenmez. (g) docker-tester: temiz klonda ilk `build --no-cache` frontend'de `lightningcss.linux-arm64-musl.node` bulunamadı diye düştü (npm ci isteğe bağlı paketi 1 kez kurmadı), tekrar denemede geçti; Faz 7A'dan bağımsız, Fikir Havuzu'na yazıldı.
 
+## Faz 8 denetimi (2026-10-26)
+Yapılanlar: spec-guard tam denetim (gerçek ❌ yok), `/code-review high` (tüm depo, 22 bulgu), güvenlik incelemesi (tüm depo). Yerleşik `/security-review` yalnızca `origin/HEAD` farkını incelediği ve depoda `origin/HEAD` tanımlı olmadığı için açılmadı; aynı inceleme tüm depo üzerinde general-purpose alt agent ile yapıldı. Yasaklı kelime grep'i (`.claude` hariç, kullanıcı kararı) boş.
+
+Düzeltilen bulgular (kullanıcı onayıyla, her biri ayrı commit):
+- KRİTİK K1: `.env.example`'daki `change-me` ve `ornek-token-*` canlıda tam yönetici yetkisi veriyordu (port 8000 0.0.0.0). Artık `change-me`, `ornek-*` ve 12 karakterden kısa tokenlar yok sayılır, açılışta sayıyla uyarı loglanır (değer loglanmaz). Eşik 12 (testlerdeki 14–16 karakterlik tokenlar geçerli kalsın diye; `openssl rand -hex 16` 32 karakter).
+- KRİTİK K2: `OCR_MIN_CONF` (30) altındaki kelimeler PII taramasından önce atılıyordu; düşük güvenle okunan numara açık kalabilirdi. Artık sansür bütün kelimelere bakar, güven eşiği yalnızca etiket çıkarmada.
+- Ö1: telefon JPEG'leri (Pillow `MPO`) 415 alıyordu. Ö2: 21 KB'lık PNG ~2,3 GB bellek açıyordu; 50 MP sınırı + JPEG `draft` + metaveri temizliğinden önce küçültme (48 MP PNG 0,3 sn). Ö3: 8 MB sınırı gövde tamamen /tmp'ye yazıldıktan sonra uygulanıyordu; `BodySizeLimitMiddleware` (MAX_UPLOAD_MB + 1 MB; Content-Length'te gövde okunmaz, chunked'da sayılır) + `tmpfs /tmp:size=128m`. Ö4: yeni kurulumda `/uploads/x.jpg` 500 veriyordu. Ö5: OCR'dan gelen `²` gibi rakamlar 500'e yol açıyordu (NFKC + isdecimal). Ö6: arayüz her 503'ü "Model yükleniyor" gösteriyordu. Ö7: takip kodu sekme değişince kayboluyordu. Ö8: `http://127.0.0.1:3000` CORS'ta yoktu.
+- Testler: venv 236 geçti, 1 atlandı + bilinen macOS düşüşü (`test_id_like_card_is_fully_redacted`, kullanıcı kararıyla Docker'da koşturuluyor); imaj içinde (`--network none`, gerçek tesseract) 237 geçti, 1 atlandı. `npm run build` (tsc dahil) hatasız.
+
+Kullanıcının yapması gerekenler (Faz 8 düzeltmelerinin yan etkisi):
+- Yerel `.env` örnek tokenları kullanıyor (açılış logu: "3 yönetici tokenı ... yok sayıldı"); yönetici paneli gerçek tokenlar yazılana kadar 403 verir.
+- Yerel `.env` `CORS_ORIGINS=http://localhost:3000` içeriyor; 127.0.0.1 desteği için `.env`'e de eklenmeli (compose varsayılanı yalnızca `.env`'de değer yoksa geçerli).
+
+Elle hata senaryoları (compose, yeni imaj, M4 Pro):
+| # | Senaryo | Sonuç |
+|---|---|---|
+| 1 | Boş form `POST /api/items` | 422 "Lütfen bir fotoğraf yükleyin." |
+| 2 | Boş arama | 422 "Aramak için bir açıklama yazın veya fotoğraf yükleyin." |
+| 3 | 30 MB dosya | 413 "Dosya çok büyük. En fazla 8 MB yükleyebilirsiniz.", 2 ms, gövde gönderilmeden (önce: 250 ms, 30 MB okunuyordu) |
+| 3b | 60 MB beklenmeyen alan | 413, gövde okunmadı (önce: 60 MB kabul edilip 422) |
+| 3c | 60 MB chunked multipart | 413, ~10,9 MB'ta kesildi |
+| 4 | .pdf (application/pdf) | 415 "Desteklenmeyen dosya türü..." |
+| 5 | Bozuk görsel | 400 "Görsel açılamadı..." |
+| 5b | 21 KB piksel bombası | 400 "Görsel çok büyük...", 4 ms |
+| 6 | Backend kapalıyken frontend | :3000 ve SPA yolları 200; API bağlantı reddi; arayüz `api.ts` → "Sunucuya ulaşılamadı." + "Tekrar dene" (tarayıcıda kullanıcı doğrulayacak) |
+| 7 | Model yüklenirken arama | t+1 sn: /health 503 `{"status":"loading"}`, arama 503 "Model yükleniyor..."; t+6 sn: 200 ve sonuç |
+| 8 | Token'sız / yanlış / `change-me` / `ornek-token-*` | 403 "Bu işlem için yetkiniz yok." (önce `change-me` ve örnek nokta tokenı 200) |
+| 9 | Olmayan ilan / olmayan upload | 404 "İlan bulunamadı." / 404 "Kaynak bulunamadı." |
+İz dökümü hiçbir yanıtta yok. Backend bellek 470 MiB.
+
+Kapsam kayması: yok. Uçlar PLAN API sözleşmesiyle birebir (12 uç + /uploads). Bağımlılıklar CLAUDE.md izinli listesi (+ onaylı `@types/*`; torch Dockerfile'da CPU index'inden). PLAN'da adı geçmeyen dosyalar plan kapsamındaki fazların gerektirdikleri (`api/lost_reports.py`, `tracking.py`, `api/uploads.py`), onaylılar (`try_blur.py`, 7A test dosyaları) ve araç dosyaları (`vite-env.d.ts`, `package-lock.json`, `.githooks/commit-msg`). Faz 8'de yeni dosya eklenmedi.
+
+Kullanıcı kararı bekleyen önemli maddeler (kod değil):
+- Demo görselleri: `earbud_case_white_open` ve `queries/094013_3`'te el; `keys_blue_fob`'da anahtar kodu "501813"; `ballpoint_pen_white` üzerindeki "GEBGENC33" baskısı doğrulanmalı. Diskteki `demo_data/raw/` (gitignore'lu, eski internet seti kalıntıları dahil) teslimden önce silinmeli.
+- 70 commit'in 69'u 2026-10-26 tarihli (2 gün). Tek yazar (`efesenel61`); ekip iki kişiyse ikinci üyenin commit'i yok.
+- `/api/search` görsel aramada metin eşiklerini kullanıyor (her sonuç "yüksek"); bilinen, API değişikliği gerektirir.
+- spec-guard ikinci tur (düzeltme sonrası): kritik ihlal yok. Önemli: Faz 8'de eklenen `MAX_PIXELS` (50 MP), `MIN_TOKEN_LEN` (12), form payı (1 MB) koda gömülü ve `tmpfs` boyutu (128m) `MAX_UPLOAD_MB`'ye bağlı değil; CLAUDE.md "ayarlar ortamdan" kuralı gereği ya ortam değişkeni yapılmalı ya da PLAN'a güvenlik sabiti olarak yazılmalı (yeni env değişkeni → onay gerekir). Kozmetik: `0cb1192` gövde sınırı ile tmpfs boyutunu tek commit'te topluyor (aynı bulgunun iki parçası).
+- Yeni bulgu (Faz 8 curl): bozuk multipart gövdesi İngilizce 400 dönüyor (`{"detail":"Invalid multipart data."}`, `"Missing boundary in multipart."`); `errors.py` HTTPException işleyicisi Starlette'in mesajını geçiriyor. Tarayıcı bu isteği üretmez, ama şartname 1.9 "Türkçe hata". Düzeltme onayı bekliyor.
+
 ## Fikir Havuzu (kapsam dışı, onay bekleyen)
+- Faz 8 kozmetik bulgular (yalnızca listelendi): nginx güvenlik başlıkları (`nosniff`, `X-Frame-Options`/CSP `frame-ancestors`, `Referrer-Policy`) ve `server_tokens off`; `/docs`, `/redoc`, `/openapi.json` açık (PLAN Faz 1 "docs_url açık kalabilir" diyor); yönetici token denemesinde hız sınırı yok; React `ErrorBoundary` yok; `ADMIN_POINT_TOKENS`'ta boş anahtar filtresiz liste veriyor (yetkisiz değişiklik yok) ve bozuk JSON sessiz yutuluyor; ileri saat dilimindeki cihazda varsayılan tarih reddediliyor (frontend yerel tarih, backend UTC+3); yönetici panelinde yenileme sırasında karttaki düğmeler tekrar tıklanabiliyor; kayıp bildirimi eşleşmesi metin indeksini ve etiket bonusunu kullanmıyor; `Store.search` matrisi 3 kez kopyalıyor, `set_text_embeddings` O(N²), `store.add`/`list_items` olay döngüsünde (N=24'te hedefler karşılanıyor); arama ve bildirim alımı kodu tekrar ediyor, `query_terms` enjekte edilen markaları kullanmıyor; `_save_match`'te kullanılmayan `medium` parametresi; takip kodu üretimi harf ağırlıklı (güvenlik etkisi yok); `tagger` 0.35 eşiği koda gömülü (CLAUDE.md "ayarlar ortamdan"); frontend healthcheck ve YuNet SHA-256 doğrulaması yok; bir commit mesajı şimdiki zamanda; testlerdeki `Settings()` yerel `.env`'i okuyor (yalnızca CORS testi `_env_file=None` ile yalıtıldı).
 - Faz 7A: frontend Dockerfile'ında `npm ci` sonrası lightningcss native modülünün varlığını doğrulayan ya da yoksa yeniden kuran bir adım (temiz klonda bir kez aralıklı build hatası görüldü).
 - Faz 7A: sansür kutusu genişletmesini sabit 4 px yerine kutu yüksekliğiyle orantılı yapmak (ör. %15, en az 4 px).
 - Faz 6: görsel arama için ayrı eşik (MATCH_IMAGE_HIGH/MEDIUM) (Faz 7'de yalnızca bildirim eşleşmesi için MATCH_IMAGE_MEDIUM uygulandı, `/api/search` hâlâ ortak eşik); görsel skorlar 0.73–0.95 arasında, metin eşikleri anlamsız kalıyor. API değişikliği, onay gerekir.
