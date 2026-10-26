@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     max_upload_mb: int = 8
     max_image_side: int = 1024
     torch_num_threads: int = 4
-    match_high: float = 0.30
-    match_medium: float = 0.24
+    match_high: float = 0.315
+    match_medium: float = 0.255
     admin_token: str = ""
     log_level: str = "INFO"
 

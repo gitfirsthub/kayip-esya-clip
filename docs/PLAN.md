@@ -18,8 +18,8 @@ FACE_SCORE_THRESHOLD=0.6
 MAX_UPLOAD_MB=8
 MAX_IMAGE_SIDE=1024
 TORCH_NUM_THREADS=4
-MATCH_HIGH=0.30                              # Faz 6'da eval ile ayarlanacak
-MATCH_MEDIUM=0.24
+MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
+MATCH_MEDIUM=0.255
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403)
 LOG_LEVEL=INFO
 

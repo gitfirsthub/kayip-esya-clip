@@ -21,8 +21,8 @@ services:
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
       MAX_IMAGE_SIDE: ${MAX_IMAGE_SIDE:-1024}
       TORCH_NUM_THREADS: ${TORCH_NUM_THREADS:-4}
-      MATCH_HIGH: ${MATCH_HIGH:-0.30}
-      MATCH_MEDIUM: ${MATCH_MEDIUM:-0.24}
+      MATCH_HIGH: ${MATCH_HIGH:-0.315}
+      MATCH_MEDIUM: ${MATCH_MEDIUM:-0.255}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Çalışma zamanında bulut/ağ erişimi olmasın; .env bunu ezemez.
