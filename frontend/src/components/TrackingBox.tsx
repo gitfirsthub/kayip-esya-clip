@@ -3,6 +3,7 @@ import { getReportMatches } from "../api";
 import type { ReportMatches } from "../types";
 import ErrorBox from "./ErrorBox";
 import ItemCard from "./ItemCard";
+import SkeletonGrid from "./Skeleton";
 import Spinner from "./Spinner";
 
 export default function TrackingBox() {
@@ -52,7 +53,12 @@ export default function TrackingBox() {
       </form>
 
       <ErrorBox message={error} />
-      {loading && <Spinner label="Kontrol ediliyor…" />}
+      {loading && (
+        <>
+          <Spinner label="Kontrol ediliyor…" />
+          <SkeletonGrid />
+        </>
+      )}
 
       {!loading && result && (
         <div aria-live="polite">

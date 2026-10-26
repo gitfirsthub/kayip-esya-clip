@@ -3,6 +3,7 @@ import { listItems } from "../api";
 import type { ItemList, ItemStatus } from "../types";
 import ErrorBox from "./ErrorBox";
 import ItemCard from "./ItemCard";
+import SkeletonGrid from "./Skeleton";
 import Spinner from "./Spinner";
 
 const PAGE_SIZE = 20;
@@ -69,7 +70,12 @@ export default function ItemsTab() {
           Tekrar dene
         </button>
       )}
-      {loading && <Spinner label="İlanlar yükleniyor…" />}
+      {loading && (
+        <>
+          <Spinner label="İlanlar yükleniyor…" />
+          <SkeletonGrid />
+        </>
+      )}
 
       {!loading && data && (
         <div aria-live="polite">

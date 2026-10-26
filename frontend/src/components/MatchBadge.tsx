@@ -6,6 +6,12 @@ const CLASS: Record<MatchLevel, string> = {
   "düşük": "badge-low",
 };
 
+const TEXT: Record<MatchLevel, string> = {
+  "yüksek": "Yüksek eşleşme",
+  orta: "Orta eşleşme",
+  "düşük": "Düşük eşleşme",
+};
+
 export default function MatchBadge({ level }: { level: MatchLevel }) {
-  return <span className={`badge ${CLASS[level]}`}>Eşleşme: {level}</span>;
+  return <span className={`badge ${CLASS[level]}`}>{TEXT[level]}</span>;
 }

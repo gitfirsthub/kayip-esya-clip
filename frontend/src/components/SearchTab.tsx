@@ -4,6 +4,7 @@ import type { Meta, SearchResponse } from "../types";
 import ErrorBox from "./ErrorBox";
 import ImagePicker from "./ImagePicker";
 import ItemCard from "./ItemCard";
+import SkeletonGrid from "./Skeleton";
 import Spinner from "./Spinner";
 import TrackingBox from "./TrackingBox";
 
@@ -146,7 +147,12 @@ export default function SearchTab({ meta }: { meta: Meta }) {
       )}
 
       <ErrorBox message={error} />
-      {loading && <Spinner label="Aranıyor…" />}
+      {loading && (
+        <>
+          <Spinner label="Aranıyor…" />
+          <SkeletonGrid />
+        </>
+      )}
 
       {!loading && response && (
         <div aria-live="polite">
