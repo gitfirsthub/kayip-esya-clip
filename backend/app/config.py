@@ -20,7 +20,7 @@ def token_usable(token: str) -> bool:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     data_dir: str = "/data"
     model_cache_dir: str = "/models"
     image_model: str = "clip-ViT-B-32"

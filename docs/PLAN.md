@@ -6,7 +6,7 @@ Her fazın "Kabul" maddeleri sağlanmadan sonraki faza geçilmez.
 ## Ortam değişkenleri (tek kaynak; .env.example bununla aynı olur)
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 VITE_API_URL=http://localhost:8000          # frontend build arg (derleme zamanında gömülür)
 DATA_DIR=/data
 MODEL_CACHE_DIR=/models

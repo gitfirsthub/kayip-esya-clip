@@ -10,7 +10,7 @@ services:
       - path: .env
         required: false
     environment:
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       DATA_DIR: ${DATA_DIR:-/data}
       MODEL_CACHE_DIR: ${MODEL_CACHE_DIR:-/models}
       IMAGE_MODEL: ${IMAGE_MODEL:-clip-ViT-B-32}
