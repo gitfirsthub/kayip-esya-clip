@@ -190,6 +190,7 @@ async def create_item(
                 embedding,
                 high=settings.match_high,
                 medium=settings.match_medium,
+                image_high=settings.match_image_high,
                 image_medium=settings.match_image_medium,
             )
         )

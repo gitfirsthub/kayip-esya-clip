@@ -95,8 +95,29 @@ def test_search_image_errors(api):
 def test_match_level_thresholds():
     from app.api.search import match_level
 
-    s = Settings(match_high=0.30, match_medium=0.24)
-    assert match_level(0.30, s) == "yüksek"
-    assert match_level(0.2999, s) == "orta"
-    assert match_level(0.24, s) == "orta"
-    assert match_level(0.2399, s) == "düşük"
+    assert match_level(0.30, 0.30, 0.24) == "yüksek"
+    assert match_level(0.2999, 0.30, 0.24) == "orta"
+    assert match_level(0.24, 0.30, 0.24) == "orta"
+    assert match_level(0.2399, 0.30, 0.24) == "düşük"
+
+
+def test_level_thresholds_depend_on_query_type():
+    from app.api.search import level_thresholds
+
+    s = Settings(match_high=0.30, match_medium=0.24, match_image_high=0.90, match_image_medium=0.80)
+    assert level_thresholds(s, has_text=True, has_image=False) == (0.30, 0.24)
+    assert level_thresholds(s, has_text=False, has_image=True) == (0.90, 0.80)
+    high, medium = level_thresholds(s, has_text=True, has_image=True)
+    assert abs(high - 0.60) < 1e-9 and abs(medium - 0.52) < 1e-9
+
+
+def test_image_search_uses_image_thresholds(api):
+    # Metin eşikleri her sonucu "yüksek" yapacak kadar düşük; görsel aramada yine de görsel eşikleri geçerli.
+    api.settings.match_high = api.settings.match_medium = -1.0
+    api.settings.match_image_high = api.settings.match_image_medium = 2.0
+    post_item(api)
+    files = {"image": ("a.jpg", make_image_bytes(), "image/jpeg")}
+    levels = {r["match_level"] for r in api.post("/api/search", files=files).json()["results"]}
+    assert levels == {"düşük"}
+    levels = {r["match_level"] for r in api.post("/api/search", data={"query": "mavi"}).json()["results"]}
+    assert levels == {"yüksek"}

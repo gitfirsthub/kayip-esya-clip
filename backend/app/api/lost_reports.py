@@ -61,6 +61,7 @@ async def create_lost_report(
                 report["id"],
                 high=settings.match_high,
                 medium=settings.match_medium,
+                image_high=settings.match_image_high,
                 image_medium=settings.match_image_medium,
             )
         )

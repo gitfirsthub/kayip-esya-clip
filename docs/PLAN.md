@@ -23,6 +23,8 @@ TMP_SIZE=128m                                # compose tmpfs /tmp boyutu (Faz 8)
 TORCH_NUM_THREADS=4
 MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
 MATCH_MEDIUM=0.255
+MATCH_IMAGE_HIGH=0.87                        # görsel-görsel eşikleri (Faz 8, kullanıcı kararı; docs/EVAL.md)
+MATCH_IMAGE_MEDIUM=0.80                      # Faz 7'de bildirim eşleşmesi için eklendi
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403); ADMIN_REJECT_WEAK_TOKENS=true iken change-me, ornek-* ve ADMIN_TOKEN_MIN_LEN'den kısa tokenlar yok sayılır (Faz 8)
 ADMIN_POINT_TOKENS={}                        # JSON {"<teslim noktası>":"<token>"}; nokta tokenı yalnızca o noktanın ilanlarını yönetir (Faz 7B)
 ADMIN_REJECT_WEAK_TOKENS=true                # false yalnızca yerel prototip (Faz 8, kullanıcı kararı)
@@ -50,7 +52,7 @@ LOG_LEVEL=INFO
 - GET /api/items/{id} → Item | 404 {"detail":"İlan bulunamadı."}
 - POST /api/search (multipart): query (0–200), image (opsiyonel), location (opsiyonel filtre), category (opsiyonel filtre), include_returned (bool, varsayılan false), top_k (1–50, varsayılan 12).
   query ve image'den en az biri zorunlu, yoksa 422 {"detail":"Aramak için bir açıklama yazın veya fotoğraf yükleyin."}.
-  İkisi birden varsa: s = 0.5*s_text + 0.5*cos(q_img, item). Faz 7A: s_text = (1-w)*cos(q_text, item_img) + w*cos(q_text, item_text) + etiket bonusu (w = SEARCH_TEXT_WEIGHT; sorgudaki marka/model sözcüğü ilanın etiketiyle eşleşirse eşleşme başına TAG_BONUS, en çok TAG_BONUS_MAX). Yanıt: {results:[{item, score, match_level:"yüksek"|"orta"|"düşük"}], took_ms}. Arama görseli diske KAYDEDİLMEZ.
+  İkisi birden varsa: s = 0.5*s_text + 0.5*cos(q_img, item). Faz 7A: s_text = (1-w)*cos(q_text, item_img) + w*cos(q_text, item_text) + etiket bonusu (w = SEARCH_TEXT_WEIGHT; sorgudaki marka/model sözcüğü ilanın etiketiyle eşleşirse eşleşme başına TAG_BONUS, en çok TAG_BONUS_MAX). Yanıt: {results:[{item, score, match_level:"yüksek"|"orta"|"düşük"}], took_ms}. match_level eşikleri (Faz 8): yalnızca metin → MATCH_HIGH/MATCH_MEDIUM; yalnızca görsel → MATCH_IMAGE_HIGH/MATCH_IMAGE_MEDIUM; ikisi birlikte → iki çiftin 0.5/0.5 ortalaması. Görselli bildirim eşleşmelerinin düzeyi de görsel eşikleriyle belirlenir. Arama görseli diske KAYDEDİLMEZ.
 - PATCH /api/items/{id}/status  header X-Admin-Token, body {"status":"teslim_edildi"|"bekliyor"} → Item | 403 | 404 (Faz 7B: nokta tokenıyla başka noktanın ilanı da 404)
 - DELETE /api/items/{id}  header X-Admin-Token → 204 | 403 | 404 (aynı kapsam kuralı; görsel dosyası da silinir)
 - GET /api/admin/me  header X-Admin-Token → {"scope": "<teslim noktası>"|null} | 403 (null = ADMIN_TOKEN, tüm noktalar)

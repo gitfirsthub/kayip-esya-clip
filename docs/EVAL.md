@@ -106,7 +106,7 @@ API, metin ve görsel aramada tek ve ortak bir eşik çifti kullanıyor (`MATCH_
 - **MATCH_MEDIUM = 0.255** (eski 0.24): doğru ilan ile bütün yanlış ilanları en iyi ayıran eşik (Youden J = 0.605). Doğru eşleşmelerin %77'si bu eşiği geçiyor, ilgisiz ilanların %17'si geçiyor. Benzer bir eşyanın (en iyi yanlış) bu eşiği geçme oranı ise %86. Yani "orta" düzeyi "ilgili olabilir" anlamına geliyor, "kesin bu" anlamına gelmiyor.
 - **MATCH_HIGH = 0.315** (eski 0.30): sorgu başına en iyi yanlış skorların 90. yüzdeliği, 0.005'e yukarı yuvarlandı. En benzer yanlış ilanın bu eşiği geçme oranı %7, bütün yanlışlarınki %0.4. Bunun bedeli, doğru eşleşmelerin yalnızca %14'ünün "yüksek" etiketi alması. Bu bilinçli olarak temkinli bir seçim: "yüksek" etiketi az verilsin ama verildiğinde güvenilir olsun.
 - Yeni eşiklerle metin sorgularında doğru ilanın düzeyi: 12 yüksek, 53 orta, 19 düşük (toplam 84). En iyi yanlış ilanın düzeyi: 6 yüksek, 66 orta, 12 düşük.
-- **Görsel aramada etiket ayırt edici değil:** ortak eşik nedeniyle 7 görsel sorgunun hepsinde hem doğru hem en iyi yanlış ilan "yüksek" görünüyor. Görsel arama için ayrı bir eşik gerekir. Bu bir API değişikliği olduğu için yapılmadı; kullanıcı onayına bağlı.
+- **Görsel aramada etiket ayırt edici değil:** ortak eşik nedeniyle 7 görsel sorgunun hepsinde hem doğru hem en iyi yanlış ilan "yüksek" görünüyor. Görsel arama için ayrı bir eşik gerekir. Bu bir API değişikliği olduğu için yapılmadı; kullanıcı onayına bağlı. **Faz 8'de kullanıcı onayıyla ayrı görsel eşikleri eklendi (aşağıdaki bölüm).**
 - Eşikler `backend/app/config.py`, `.env.example`, `docker-compose.yml` ve `docs/PLAN.md` dosyalarında güncellendi. Çalışan konteyner yeniden başlatılana kadar eski değerleri kullanmaya devam eder.
 
 ## Denemeler (yalnızca betik içinde; API davranışı değiştirilmedi)
@@ -156,3 +156,34 @@ w = `SEARCH_TEXT_WEIGHT`; metin sorgusunda s_text = (1-w)·cos(sorgu, ilan görs
 ### OCR'ın demo ilanlarına etkisi
 - 21 ilandan 20'sinde sansür kutusu yok, `document_like=false`, etiket yok.
 - "Yeşil kadranlı metal kol saati": YuNet kadranı yüz sanıyor (Faz 6'daki bilinen sorun) ve OCR kadrandaki işaretlerden ≥ 8 "kelime" okuyor; bu yüzden ilan **belge benzeri** sayıldı ve 12 bölge siyahla kapatıldı. Gizlilik açısından güvenli yönde bir hata, ama ilan görselini daha da bozuyor. Kullanıcı kararına bırakıldı.
+
+## Faz 8: Görsel arama için ayrı eşikler (2026-10-26)
+
+### Sorun
+API metin ve görsel arama için aynı eşik çiftini kullanıyordu (`MATCH_HIGH=0.315`, `MATCH_MEDIUM=0.255`). Görsel-görsel skorları çok daha yüksek olduğu için görsel aramada her sonuç "yüksek" görünüyordu; aynı durum görselli kayıp bildirimi eşleşmelerinin düzeyinde de vardı.
+
+### Ölçüm
+- Ortam: çalışan compose (Faz 8 imajı), 24 ilan (21 demo + 3 eski test ilanı; fazlalar yanlış aday sayılır), `SEARCH_TEXT_WEIGHT=0.1`, M4 Pro. Komut: `python backend/scripts/eval_retrieval.py --api-url http://localhost:8000` (betiğe `suggest_image_thresholds` eklendi).
+- Sonuç tablosu bu ortamda: TR metin R@1/R@5/MRR 0.452/0.881/0.635, EN 0.619/0.881/0.737, görsel (n=7) 0.857/1.000/0.886. Metin sayıları Faz 6'dan farklı çünkü artık `SEARCH_TEXT_WEIGHT=0.1` ve 24 ilan var.
+
+| Görsel skor kümesi | n | min | p10 | medyan | p90 | maks |
+|---|---|---|---|---|---|---|
+| Doğru ilan | 7 | 0.7588 | 0.8147 | 0.9463 | 0.952 | 0.953 |
+| En iyi yanlış | 7 | 0.7261 | 0.7513 | 0.7917 | 0.8549 | 0.8656 |
+| Bütün yanlışlar | 161 | 0.4382 | 0.5499 | 0.6872 | 0.7691 | 0.8656 |
+
+### Karar
+- **`MATCH_IMAGE_HIGH = 0.87`:** en iyi yanlışların en büyüğü (0.8656), 0.005'e yukarı yuvarlandı. Metinde p90 kullanılıyor; görselde n=7 olduğu için daha temkinli olarak maksimum alındı. Doğruların %57'si (4/7) "yüksek" alıyor, hiçbir yanlış almıyor.
+- **`MATCH_IMAGE_MEDIUM = 0.80` (Faz 7'deki değer korundu):** betiğin Youden önerisi 0.85 (J=0.851). Ama iki doğru eşleşme sınırda (cüzdan 0.8519, tablet 0.8549); 0.85 bu ilanların bildirim eşleşmesini kaçırma riski doğurur. Bu eşik görselli kayıp bildiriminde eşleşmenin kaydedilip kaydedilmeyeceğini de belirlediği için, kaçırmak yanlış "orta" göstermekten daha kötü sayıldı.
+- **Metin + görsel birlikte:** skor 0.5·s_text + 0.5·s_img olduğu için eşikler de aynı oranda harmanlanır: yüksek 0.5·0.315 + 0.5·0.87 = 0.5925, orta 0.5·0.255 + 0.5·0.80 = 0.5275. Sorgu setinde birleşik sorgu olmadığı için bu eşikler ölçülmedi; formülden türetildi.
+
+| Düzey dağılımı (7 görsel sorgu) | Doğru ilan | En iyi yanlış |
+|---|---|---|
+| Eski (metin eşikleri) | 7 yüksek | 7 yüksek |
+| Yeni (0.87 / 0.80) | 4 yüksek, 2 orta, 1 düşük | 0 yüksek, 3 orta, 4 düşük |
+
+"Düşük" kalan doğru ilan, Faz 6'dan beri bilinen yuvarlak gözlük sorgusu (0.7588; 1. sırada diğer siyah gözlük 0.8656).
+
+### Sınırlar
+- n=7; tek sorgu bir düzey sayısını değiştiriyor. Eşikler aynı veriyle ayarlanıp raporlandı (overfit olabilir).
+- Ek gözlem: aynı ölçümde betiğin metin eşiği önerisi 0.31/0.37 çıktı (yürürlükte 0.315/0.255). Fark, Faz 7B'de seçilen `SEARCH_TEXT_WEIGHT=0.1`'in metin skorlarını yukarı kaydırmasından geliyor; metin eşikleri bu ağırlıkla yeniden ayarlanmadı (kullanıcı kararına bırakıldı).

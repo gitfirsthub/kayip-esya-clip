@@ -379,23 +379,29 @@ class Store:
         item_vec: np.ndarray,
         text_blob: bytes | None,
         image_blob: bytes | None,
+        high: float,
         medium: float,
+        image_high: float,
         image_medium: float,
-    ) -> float | None:
-        """Metin ya da görsel eşiğini geçen skorların en yükseğini döndürür; geçmezse None."""
-        passed = []
-        if text_blob is not None:
-            score = float(np.frombuffer(text_blob, dtype=np.float32) @ item_vec)
-            if score >= medium:
-                passed.append(score)
-        if image_blob is not None:
-            score = float(np.frombuffer(image_blob, dtype=np.float32) @ item_vec)
-            if score >= image_medium:
-                passed.append(score)
-        return max(passed) if passed else None
+    ) -> tuple[float, str] | None:
+        """Kendi eşiğini geçen metin/görsel skorlarından en yükseğini ve düzeyini döndürür; geçmezse None.
 
-    def _save_match(self, report_id: str, item_id: str, score: float, high: float, medium: float) -> None:
-        level = "yüksek" if score >= high else "orta"
+        Görsel-görsel skorları metinden çok yüksek olduğu için her tür kendi eşik çiftiyle değerlendirilir;
+        düzey, eşiğini geçen türlerden en iyisidir.
+        """
+        passed: list[tuple[float, str]] = []
+        for blob, hi, med in ((text_blob, high, medium), (image_blob, image_high, image_medium)):
+            if blob is None:
+                continue
+            score = float(np.frombuffer(blob, dtype=np.float32) @ item_vec)
+            if score >= med:
+                passed.append((score, "yüksek" if score >= hi else "orta"))
+        if not passed:
+            return None
+        level = "yüksek" if any(lvl == "yüksek" for _, lvl in passed) else "orta"
+        return max(s for s, _ in passed), level
+
+    def _save_match(self, report_id: str, item_id: str, score: float, level: str) -> None:
         self._conn.execute(
             "INSERT OR REPLACE INTO report_matches (report_id, item_id, score, match_level, created_at) "
             "VALUES (?, ?, ?, ?, ?)",
@@ -403,7 +409,15 @@ class Store:
         )
 
     def match_item_to_reports(
-        self, item_id: str, location: str, embedding: np.ndarray, *, high: float, medium: float, image_medium: float
+        self,
+        item_id: str,
+        location: str,
+        embedding: np.ndarray,
+        *,
+        high: float,
+        medium: float,
+        image_high: float,
+        image_medium: float,
     ) -> int:
         """Yeni ilanı tüm açık bildirimlerle karşılaştırır; eşleşenleri kaydeder, sayısını döndürür."""
         vec = self._check_vec(embedding)
@@ -416,13 +430,17 @@ class Store:
                 for r in rows:
                     if r["location"] and r["location"] != location:
                         continue
-                    score = self._best_score(vec, r["text_embedding"], r["image_embedding"], medium, image_medium)
-                    if score is not None:
-                        self._save_match(r["id"], item_id, score, high, medium)
+                    match = self._best_score(
+                        vec, r["text_embedding"], r["image_embedding"], high, medium, image_high, image_medium
+                    )
+                    if match is not None:
+                        self._save_match(r["id"], item_id, *match)
                         saved += 1
         return saved
 
-    def match_report_to_items(self, report_id: str, *, high: float, medium: float, image_medium: float) -> int:
+    def match_report_to_items(
+        self, report_id: str, *, high: float, medium: float, image_high: float, image_medium: float
+    ) -> int:
         """Yeni bildirimi bekleyen mevcut ilanlarla karşılaştırır; eşleşenleri kaydeder."""
         saved = 0
         with self._lock:
@@ -438,9 +456,11 @@ class Store:
                         continue
                     if r["location"] and self._locations[i] != r["location"]:
                         continue
-                    score = self._best_score(self._matrix[i], r["text_embedding"], r["image_embedding"], medium, image_medium)
-                    if score is not None:
-                        self._save_match(r["id"], item_id, score, high, medium)
+                    match = self._best_score(
+                        self._matrix[i], r["text_embedding"], r["image_embedding"], high, medium, image_high, image_medium
+                    )
+                    if match is not None:
+                        self._save_match(r["id"], item_id, *match)
                         saved += 1
         return saved
 

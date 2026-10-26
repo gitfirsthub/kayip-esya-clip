@@ -70,10 +70,10 @@ def dist(values):
             "max": round(float(v.max()), 4)}
 
 
-def youden(pos, neg):
+def youden(pos, neg, lo=0.10, hi=0.50):
     """TPR - FPR'yi en büyük yapan eşik (0.005 adımlı tarama; eşitlikte küçük olan)."""
     best = None
-    for t in np.round(np.arange(0.10, 0.50, 0.005), 3):
+    for t in np.round(np.arange(lo, hi, 0.005), 3):
         tpr, fpr = float((pos >= t).mean()), float((neg >= t).mean())
         if best is None or tpr - fpr > best["J"] + 1e-9:
             best = {"t": float(t), "TPR": round(tpr, 3), "FPR": round(fpr, 3), "J": round(tpr - fpr, 3)}
@@ -104,6 +104,29 @@ def suggest_thresholds(rows):
         "high_FPR_best": round(float((neg_best >= high).mean()), 3),
         "high_FPR_all": round(float((neg_all >= high).mean()), 3),
         "youden_vs_best_wrong": j_best,
+    }
+
+
+def suggest_image_thresholds(rows):
+    """Görsel-görsel skorlarından eşik önerisi (MATCH_IMAGE_HIGH / MATCH_IMAGE_MEDIUM).
+
+    Görsel skorları metinden çok yüksek (ilgisiz ilanlar bile ~0.5–0.8), bu yüzden ayrı eşik gerekir.
+    medium: doğru vs. bütün yanlışlar için Youden J (0.40–1.00 taraması).
+    high:   en iyi yanlışların EN BÜYÜĞÜ, 0.005'e yukarı yuvarlanmış. Metinde p90 kullanılıyor; görselde
+            n çok küçük (7) olduğu için daha temkinli olarak maksimum alındı.
+    """
+    pos = np.array([r["correct_score"] for r in rows if r["correct_score"] is not None])
+    neg_all = np.array([s for r in rows for s in r["wrong_scores"]])
+    neg_best = np.array([r["best_wrong_score"] for r in rows if r["best_wrong_score"] is not None])
+    med = youden(pos, neg_all, lo=0.40, hi=1.0)
+    high = float(np.ceil(neg_best.max() / 0.005 - 1e-9) * 0.005)
+    high = max(high, med["t"] + 0.01)
+    return {
+        "match_image_medium": round(med["t"], 3), "medium_TPR": med["TPR"], "medium_FPR_all": med["FPR"],
+        "medium_FPR_best": round(float((neg_best >= med["t"]).mean()), 3), "medium_J": med["J"],
+        "match_image_high": round(high, 3), "high_TPR": round(float((pos >= high).mean()), 3),
+        "high_FPR_best": round(float((neg_best >= high).mean()), 3),
+        "high_FPR_all": round(float((neg_all >= high).mean()), 3),
     }
 
 
@@ -173,7 +196,9 @@ def main():
     }
     thr = suggest_thresholds(text_rows)
     levels_text = level_counts(text_rows, thr["match_high"], thr["match_medium"])
-    levels_img = level_counts(res["Görsel"], thr["match_high"], thr["match_medium"])
+    thr_img = suggest_image_thresholds(res["Görsel"])
+    levels_img_shared = level_counts(res["Görsel"], thr["match_high"], thr["match_medium"])
+    levels_img = level_counts(res["Görsel"], thr_img["match_image_high"], thr_img["match_image_medium"])
     took = [r["took_ms"] for rows in res.values() for r in rows]
     failures = [{"tür": name, **r} for name, rows in res.items() for r in rows if r["rank"] != 1]
 
@@ -182,7 +207,9 @@ def main():
         "template_tr": args.template, "template_en": args.template_en, "category_filter": bool(cat_map),
         "platform": f"{platform.system()} {platform.release()} {platform.machine()}",
         "summary": summary, "score_distribution": dists, "threshold_suggestion": thr,
-        "levels_with_suggestion": {"metin": levels_text, "görsel": levels_img},
+        "image_threshold_suggestion": thr_img,
+        "levels_with_suggestion": {"metin": levels_text, "görsel (metin eşiğiyle)": levels_img_shared,
+                                   "görsel (görsel eşiğiyle)": levels_img},
         "api_took_ms": {"median": round(statistics.median(took), 1), "max": round(max(took), 1)},
         "failures": failures,
         "per_query": {k: [{f: v for f, v in r.items() if f != "wrong_scores"} for r in rows] for k, rows in res.items()},
@@ -206,6 +233,14 @@ def main():
     print(f"- Karşılaştırma: doğru vs. en iyi yanlış için en iyi eşik {jb['t']} (J={jb['J']}); "
           f"J küçükse skor tek başına doğruyu en benzer yanlıştan ayıramıyor, ayrımı sıralama yapıyor")
     print(f"- Bu eşiklerle metin düzeyleri: {levels_text}")
+    print(f"- Metin eşikleriyle görsel düzeyleri (ayrı eşik öncesi): {levels_img_shared}")
+    print("\n## Görsel eşik önerisi (görsel-görsel skorlarından)\n")
+    print(f"- match_image_medium = {thr_img['match_image_medium']} (doğru vs. tüm yanlışlar Youden J={thr_img['medium_J']}): "
+          f"doğruların {thr_img['medium_TPR']:.0%}'i, tüm yanlışların {thr_img['medium_FPR_all']:.0%}'i, en iyi yanlışların "
+          f"{thr_img['medium_FPR_best']:.0%}'i bu eşiği geçiyor")
+    print(f"- match_image_high = {thr_img['match_image_high']} (en iyi yanlışların maksimumu): doğruların "
+          f"{thr_img['high_TPR']:.0%}'i, en iyi yanlışların {thr_img['high_FPR_best']:.0%}'i, tüm yanlışların "
+          f"{thr_img['high_FPR_all']:.0%}'i bu eşiği geçiyor")
     print(f"- Bu eşiklerle görsel düzeyleri: {levels_img}")
     print(f"- API took_ms medyan {out['api_took_ms']['median']}, maks {out['api_took_ms']['max']}")
     print("\n## Başarısız sorgular (doğru ilan 1. sırada değil)\n")

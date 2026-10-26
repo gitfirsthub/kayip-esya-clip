@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     torch_num_threads: int = 4
     match_high: float = 0.315
     match_medium: float = 0.255
+    match_image_high: float = 0.87
     match_image_medium: float = 0.80
     admin_token: str = ""
     admin_point_tokens: str = ""  # JSON: {"<teslim noktası>": "<token>"}

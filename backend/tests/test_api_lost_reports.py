@@ -154,3 +154,15 @@ def test_image_report_uses_image_threshold(api):
     item = post_item(api).json()
     ids = [m["item"]["id"] for m in api.get(f"/api/lost-reports/{code}/matches").json()["matches"]]
     assert ids == [item["id"]]
+
+
+def test_image_report_match_level_uses_image_high(api):
+    api.settings.match_medium = 2.0  # metin yolu kapalı
+    api.settings.match_high = -1.0  # metin eşiği görsel eşleşmeye uygulanmamalı
+    api.settings.match_image_medium = -1.0
+    api.settings.match_image_high = 2.0
+    files = {"image": ("a.jpg", make_image_bytes(), "image/jpeg")}
+    code = api.post("/api/lost-reports", data={}, files=files).json()["tracking_code"]
+    post_item(api)
+    levels = [m["match_level"] for m in api.get(f"/api/lost-reports/{code}/matches").json()["matches"]]
+    assert levels == ["orta"]

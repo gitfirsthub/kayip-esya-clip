@@ -24,10 +24,27 @@ TRUE_VALUES = {"true", "1", "yes", "on"}
 FALSE_VALUES = {"false", "0", "no", "off", ""}
 
 
-def match_level(score: float, settings: Settings) -> str:
-    if score >= settings.match_high:
+def level_thresholds(settings: Settings, has_text: bool, has_image: bool) -> tuple[float, float]:
+    """Sorgu türüne göre (yüksek, orta) eşikleri.
+
+    Görsel-görsel skorları metin-görsel skorlarından çok yüksek (ilgisiz ilanlar bile ~0.5–0.8); bu yüzden
+    yalnızca görselle aramada görsel eşikleri, ikisi birlikteyken skor formülüyle aynı oranda (0.5/0.5)
+    harmanlanmış eşikler kullanılır.
+    """
+    if has_text and has_image:
+        return (
+            0.5 * settings.match_high + 0.5 * settings.match_image_high,
+            0.5 * settings.match_medium + 0.5 * settings.match_image_medium,
+        )
+    if has_image:
+        return settings.match_image_high, settings.match_image_medium
+    return settings.match_high, settings.match_medium
+
+
+def match_level(score: float, high: float, medium: float) -> str:
+    if score >= high:
         return "yüksek"
-    if score >= settings.match_medium:
+    if score >= medium:
         return "orta"
     return "düşük"
 
@@ -110,8 +127,9 @@ async def search(
             tag_bonus_max=settings.tag_bonus_max,
         )
     )
+    high, medium = level_thresholds(settings, text_vec is not None, img_vec is not None)
     results = [
-        SearchResult(item=to_item(rec), score=round(score, 4), match_level=match_level(score, settings))
+        SearchResult(item=to_item(rec), score=round(score, 4), match_level=match_level(score, high, medium))
         for rec, score in found
     ]
     return SearchResponse(results=results, took_ms=round((time.perf_counter() - started) * 1000, 1))
