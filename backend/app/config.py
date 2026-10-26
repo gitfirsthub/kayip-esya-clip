@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     torch_num_threads: int = 4
     match_high: float = 0.315
     match_medium: float = 0.255
+    match_image_medium: float = 0.80
     admin_token: str = ""
     log_level: str = "INFO"
 

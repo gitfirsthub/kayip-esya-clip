@@ -23,6 +23,7 @@ services:
       TORCH_NUM_THREADS: ${TORCH_NUM_THREADS:-4}
       MATCH_HIGH: ${MATCH_HIGH:-0.315}
       MATCH_MEDIUM: ${MATCH_MEDIUM:-0.255}
+      MATCH_IMAGE_MEDIUM: ${MATCH_IMAGE_MEDIUM:-0.80}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Çalışma zamanında bulut/ağ erişimi olmasın; .env bunu ezemez.

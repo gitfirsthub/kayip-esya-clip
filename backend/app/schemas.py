@@ -51,3 +51,13 @@ class SearchResponse(BaseModel):
 
 class StatusUpdate(BaseModel):
     status: str
+
+
+class LostReportCreated(BaseModel):
+    tracking_code: str
+
+
+class ReportMatches(BaseModel):
+    created_at: str
+    query_text: str
+    matches: list[SearchResult]

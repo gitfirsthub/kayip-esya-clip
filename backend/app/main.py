@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import Settings, get_settings
 from app.api import admin as admin_api
 from app.api import items as items_api
+from app.api import lost_reports as lost_reports_api
 from app.api import meta as meta_api
 from app.api import search as search_api
 from app.errors import register_error_handlers
@@ -92,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(meta_api.router)
     app.include_router(items_api.router)
     app.include_router(search_api.router)
+    app.include_router(lost_reports_api.router)
     app.include_router(admin_api.router)
     app.mount(
         "/uploads",

@@ -45,6 +45,23 @@ CREATE TABLE IF NOT EXISTS items (
     embedding BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_items_created ON items(created_at);
+CREATE TABLE IF NOT EXISTS lost_reports (
+    id TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL UNIQUE,
+    query_text TEXT NOT NULL DEFAULT '',
+    location TEXT,
+    created_at TEXT NOT NULL,
+    text_embedding BLOB,
+    image_embedding BLOB
+);
+CREATE TABLE IF NOT EXISTS report_matches (
+    report_id TEXT NOT NULL REFERENCES lost_reports(id) ON DELETE CASCADE,
+    item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    score REAL NOT NULL,
+    match_level TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (report_id, item_id)
+);
 """
 
 _COLUMNS = ", ".join(FIELDS)
@@ -69,6 +86,7 @@ class Store:
         self._conn = sqlite3.connect(os.path.join(data_dir, "app.db"), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(SCHEMA)
         self._load_matrix()
 
@@ -218,3 +236,130 @@ class Store:
             rows = self._conn.execute(f"SELECT {_COLUMNS} FROM items WHERE id IN ({placeholders})", ids).fetchall()
         by_id = {r["id"]: _row_to_item(r) for r in rows}
         return [(by_id[i], s) for i, s in zip(ids, top_scores)]
+
+    # --- Kayıp bildirimleri ---
+
+    def add_report(
+        self,
+        code_hash: str,
+        query_text: str,
+        location: str | None,
+        text_embedding: np.ndarray | None,
+        image_embedding: np.ndarray | None,
+    ) -> dict:
+        text_vec = self._check_vec(text_embedding) if text_embedding is not None else None
+        image_vec = self._check_vec(image_embedding) if image_embedding is not None else None
+        report = {
+            "id": uuid.uuid4().hex,
+            "query_text": query_text,
+            "location": location,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        with self._lock:
+            with self._conn:
+                self._conn.execute(
+                    "INSERT INTO lost_reports (id, code_hash, query_text, location, created_at, "
+                    "text_embedding, image_embedding) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        report["id"],
+                        code_hash,
+                        query_text,
+                        location,
+                        report["created_at"],
+                        text_vec.tobytes() if text_vec is not None else None,
+                        image_vec.tobytes() if image_vec is not None else None,
+                    ),
+                )
+        return report
+
+    def get_report_by_code_hash(self, code_hash: str) -> dict | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT id, query_text, location, created_at FROM lost_reports WHERE code_hash = ?",
+                (code_hash,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    @staticmethod
+    def _best_score(
+        item_vec: np.ndarray,
+        text_blob: bytes | None,
+        image_blob: bytes | None,
+        medium: float,
+        image_medium: float,
+    ) -> float | None:
+        """Metin ya da görsel eşiğini geçen skorların en yükseğini döndürür; geçmezse None."""
+        passed = []
+        if text_blob is not None:
+            score = float(np.frombuffer(text_blob, dtype=np.float32) @ item_vec)
+            if score >= medium:
+                passed.append(score)
+        if image_blob is not None:
+            score = float(np.frombuffer(image_blob, dtype=np.float32) @ item_vec)
+            if score >= image_medium:
+                passed.append(score)
+        return max(passed) if passed else None
+
+    def _save_match(self, report_id: str, item_id: str, score: float, high: float, medium: float) -> None:
+        level = "yüksek" if score >= high else "orta"
+        self._conn.execute(
+            "INSERT OR REPLACE INTO report_matches (report_id, item_id, score, match_level, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (report_id, item_id, round(score, 4), level, datetime.now(timezone.utc).isoformat()),
+        )
+
+    def match_item_to_reports(
+        self, item_id: str, location: str, embedding: np.ndarray, *, high: float, medium: float, image_medium: float
+    ) -> int:
+        """Yeni ilanı tüm açık bildirimlerle karşılaştırır; eşleşenleri kaydeder, sayısını döndürür."""
+        vec = self._check_vec(embedding)
+        saved = 0
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, location, text_embedding, image_embedding FROM lost_reports"
+            ).fetchall()
+            with self._conn:
+                for r in rows:
+                    if r["location"] and r["location"] != location:
+                        continue
+                    score = self._best_score(vec, r["text_embedding"], r["image_embedding"], medium, image_medium)
+                    if score is not None:
+                        self._save_match(r["id"], item_id, score, high, medium)
+                        saved += 1
+        return saved
+
+    def match_report_to_items(self, report_id: str, *, high: float, medium: float, image_medium: float) -> int:
+        """Yeni bildirimi bekleyen mevcut ilanlarla karşılaştırır; eşleşenleri kaydeder."""
+        saved = 0
+        with self._lock:
+            r = self._conn.execute(
+                "SELECT id, location, text_embedding, image_embedding FROM lost_reports WHERE id = ?",
+                (report_id,),
+            ).fetchone()
+            if r is None or not self._ids:
+                return 0
+            with self._conn:
+                for i, item_id in enumerate(self._ids):
+                    if self._statuses[i] == STATUS_RETURNED:
+                        continue
+                    if r["location"] and self._locations[i] != r["location"]:
+                        continue
+                    score = self._best_score(self._matrix[i], r["text_embedding"], r["image_embedding"], medium, image_medium)
+                    if score is not None:
+                        self._save_match(r["id"], item_id, score, high, medium)
+                        saved += 1
+        return saved
+
+    def list_matches(self, report_id: str) -> list[tuple[dict, float, str]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT item_id, score, match_level FROM report_matches WHERE report_id = ? "
+                "ORDER BY score DESC",
+                (report_id,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                item = self.get(r["item_id"])
+                if item is not None:
+                    out.append((item, float(r["score"]), r["match_level"]))
+        return out
