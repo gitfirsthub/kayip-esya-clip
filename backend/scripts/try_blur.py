@@ -57,7 +57,7 @@ def main() -> int:
         print(f"HATA: Yüz modeli yüklenemedi: {model_path}", file=sys.stderr)
         return 1
     try:
-        img = load_and_sanitize(Path(args.input).read_bytes(), settings.max_image_side)
+        img = load_and_sanitize(Path(args.input).read_bytes(), settings.max_image_side, settings.max_image_pixels)
     except (OSError, InvalidImageError) as exc:
         print(f"HATA: {exc}", file=sys.stderr)
         return 1

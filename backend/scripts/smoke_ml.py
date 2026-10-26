@@ -24,6 +24,7 @@ import torch  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
 from app.ml.encoder import ClipEncoder  # noqa: E402
+from app.config import get_settings  # noqa: E402
 from app.ml.image_io import load_and_sanitize  # noqa: E402
 from app.ml.tagger import Tagger  # noqa: E402
 
@@ -87,7 +88,7 @@ def main() -> int:
     buf = io.BytesIO()
     Image.fromarray(raw).save(buf, "JPEG", quality=90)
     data = buf.getvalue()
-    m, x = timed(lambda: load_and_sanitize(data, 1024))
+    m, x = timed(lambda: load_and_sanitize(data, 1024, get_settings().max_image_pixels))
     print(f"load_and_sanitize (4000x3000 JPEG -> 1024): ort {m:.1f} ms, maks {x:.1f} ms")
     m, x = timed(lambda: enc.encode_texts(["siyah sırt çantası, üzerinde anahtarlık var"]))
     print(f"tek metin kodlama: ort {m:.1f} ms, maks {x:.1f} ms")
@@ -129,7 +130,7 @@ def main() -> int:
     if photos:
         section(f"demo_data/raw kategori çıktıları ({len(photos)} fotoğraf)")
         for p in photos:
-            e = enc.encode_images([load_and_sanitize(p.read_bytes(), 1024)])[0]
+            e = enc.encode_images([load_and_sanitize(p.read_bytes(), 1024, get_settings().max_image_pixels)])[0]
             cells = []
             for tpl, tg in taggers.items():
                 c, s, col = tg.tag(e)

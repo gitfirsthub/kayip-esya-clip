@@ -3,9 +3,6 @@ import io
 
 from PIL import Image, ImageOps
 
-# Açılmadan önce uygulanan piksel sınırı (≈50 MP; telefon fotoğrafları 12–50 MP). Pillow'un kendi
-# sınırı (~89 MP) yalnızca uyarı verir; küçük bir sıkıştırılmış dosya GB'larca bellek açabilir.
-MAX_PIXELS = 50_000_000
 MSG_TOO_MANY_PIXELS = "Görsel çok büyük; daha küçük bir fotoğraf yükleyin."
 
 
@@ -31,18 +28,20 @@ def _to_rgb(img: Image.Image) -> Image.Image:
     return img
 
 
-def load_and_sanitize(data: bytes, max_side: int) -> Image.Image:
+def load_and_sanitize(data: bytes, max_side: int, max_pixels: int) -> Image.Image:
     """Baytlardan EXIF/metaveri taşımayan, en uzun kenarı en fazla max_side olan RGB görüntü üretir.
 
-    Piksel sayısı açılmadan önce MAX_PIXELS ile sınırlanır; JPEG'ler mümkünse küçültülerek çözülür
-    (draft) ve görüntü metaveriden arındırılmadan önce küçültülür, böylece tepe bellek sınırlı kalır.
+    Piksel sayısı açılmadan önce max_pixels (MAX_IMAGE_PIXELS) ile sınırlanır; Pillow'un kendi sınırı
+    (~89 MP) yalnızca uyarı verir ve küçük bir sıkıştırılmış dosya GB'larca bellek açabilir. JPEG'ler
+    mümkünse küçültülerek çözülür (draft) ve görüntü metaveriden arındırılmadan önce küçültülür, böylece
+    tepe bellek sınırlı kalır.
     """
     if not data:
         raise InvalidImageError()
     try:
         with Image.open(io.BytesIO(data)) as probe:
             w, h = probe.size
-            if w * h > MAX_PIXELS:
+            if w * h > max_pixels:
                 raise InvalidImageError(MSG_TOO_MANY_PIXELS)
             probe.verify()
         with Image.open(io.BytesIO(data)) as img:

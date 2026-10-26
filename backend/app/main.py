@@ -117,7 +117,9 @@ def create_app() -> FastAPI:
     app.state.store = None
 
     # CORS'tan önce eklenir: 413 yanıtı da CORS başlıklarıyla döner, tarayıcı mesajı okuyabilir.
-    app.add_middleware(BodySizeLimitMiddleware, max_mb=settings.max_upload_mb)
+    app.add_middleware(
+        BodySizeLimitMiddleware, max_mb=settings.max_upload_mb, overhead_mb=settings.upload_form_overhead_mb
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

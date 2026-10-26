@@ -134,7 +134,7 @@ async def create_item(
     # OCR açıkken çalışma kopyası OCR_MAX_SIDE'ta tutulur; küçük metin okunabilsin.
     work_side = max(settings.ocr_max_side, settings.max_image_side) if settings.ocr_enabled else settings.max_image_side
     try:
-        img = await run_in_threadpool(load_and_sanitize, data, work_side)
+        img = await run_in_threadpool(load_and_sanitize, data, work_side, settings.max_image_pixels)
     except InvalidImageError as exc:
         raise ApiError(400, exc.message)
 

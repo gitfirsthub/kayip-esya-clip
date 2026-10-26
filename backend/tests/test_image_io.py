@@ -7,6 +7,7 @@ from app.ml.image_io import InvalidImageError, load_and_sanitize
 
 ORIENTATION = 0x0112
 GPS_IFD = 0x8825
+MAX_PIXELS = 50_000_000  # MAX_IMAGE_PIXELS varsayılanı
 
 
 def jpeg_with_exif(size=(400, 200), orientation=6) -> bytes:
@@ -28,7 +29,7 @@ def test_fixture_really_has_exif():
 
 
 def test_exif_is_removed_and_orientation_applied():
-    img = load_and_sanitize(jpeg_with_exif(size=(400, 200), orientation=6), max_side=1024)
+    img = load_and_sanitize(jpeg_with_exif(size=(400, 200), orientation=6), max_side=1024, max_pixels=MAX_PIXELS)
     assert img.size == (200, 400)
     assert img.mode == "RGB"
     assert len(img.getexif()) == 0
@@ -43,7 +44,7 @@ def test_exif_is_removed_and_orientation_applied():
 def test_rgba_png_becomes_rgb():
     buf = io.BytesIO()
     Image.new("RGBA", (50, 40), (0, 0, 255, 128)).save(buf, "PNG")
-    img = load_and_sanitize(buf.getvalue(), max_side=1024)
+    img = load_and_sanitize(buf.getvalue(), max_side=1024, max_pixels=MAX_PIXELS)
     assert img.mode == "RGB"
     assert img.size == (50, 40)
 
@@ -51,23 +52,23 @@ def test_rgba_png_becomes_rgb():
 def test_large_image_is_downscaled_small_is_not_upscaled():
     buf = io.BytesIO()
     Image.new("RGB", (3000, 1500), "white").save(buf, "JPEG")
-    assert load_and_sanitize(buf.getvalue(), max_side=1024).size == (1024, 512)
+    assert load_and_sanitize(buf.getvalue(), max_side=1024, max_pixels=MAX_PIXELS).size == (1024, 512)
 
     buf = io.BytesIO()
     Image.new("RGB", (300, 100), "white").save(buf, "PNG")
-    assert load_and_sanitize(buf.getvalue(), max_side=1024).size == (300, 100)
+    assert load_and_sanitize(buf.getvalue(), max_side=1024, max_pixels=MAX_PIXELS).size == (300, 100)
 
 
 @pytest.mark.parametrize("data", [b"", b"bu bir metin dosyasi", b"\xff\xd8\xff\xe0" + b"\x00" * 50])
 def test_invalid_bytes_raise(data):
     with pytest.raises(InvalidImageError):
-        load_and_sanitize(data, max_side=1024)
+        load_and_sanitize(data, max_side=1024, max_pixels=MAX_PIXELS)
 
 
 def test_truncated_jpeg_raises():
     data = jpeg_with_exif()
     with pytest.raises(InvalidImageError):
-        load_and_sanitize(data[: len(data) // 2], max_side=1024)
+        load_and_sanitize(data[: len(data) // 2], max_side=1024, max_pixels=MAX_PIXELS)
 
 
 def test_pixel_bomb_rejected_before_decoding():
@@ -75,7 +76,7 @@ def test_pixel_bomb_rejected_before_decoding():
     buf = io.BytesIO()
     Image.new("1", (13300, 13300), 0).save(buf, "PNG", optimize=True)
     with pytest.warns(Image.DecompressionBombWarning), pytest.raises(InvalidImageError) as exc:
-        load_and_sanitize(buf.getvalue(), max_side=1024)
+        load_and_sanitize(buf.getvalue(), max_side=1024, max_pixels=MAX_PIXELS)
     assert exc.value.message == "Görsel çok büyük; daha küçük bir fotoğraf yükleyin."
 
 
@@ -83,5 +84,5 @@ def test_pixel_bomb_rejected_before_decoding():
 def test_large_jpeg_modes_become_rgb_and_shrink(mode):
     buf = io.BytesIO()
     Image.new(mode, (4000, 3000)).save(buf, "JPEG")
-    img = load_and_sanitize(buf.getvalue(), max_side=1600)
+    img = load_and_sanitize(buf.getvalue(), max_side=1600, max_pixels=MAX_PIXELS)
     assert img.mode == "RGB" and img.size == (1600, 1200)

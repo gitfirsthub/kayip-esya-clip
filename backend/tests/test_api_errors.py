@@ -117,3 +117,10 @@ def test_phone_mpo_jpeg_accepted(api):
     Image.new("RGB", (64, 48), "red").save(buf, "MPO", save_all=True, append_images=[Image.new("RGB", (64, 48), "blue")])
     r = api.post("/api/items", data=valid_form(), files={"image": ("tel.jpg", buf.getvalue(), "image/jpeg")})
     assert r.status_code == 201
+
+
+def test_max_image_pixels_comes_from_settings(api):
+    api.settings.max_image_pixels = 1000  # 64x48 = 3072 piksel
+    r = api.post("/api/search", data={"query": "x"}, files={"image": ("a.jpg", make_image_bytes(), "image/jpeg")})
+    assert r.status_code == 400
+    assert r.json() == {"detail": "Görsel çok büyük; daha küçük bir fotoğraf yükleyin."}

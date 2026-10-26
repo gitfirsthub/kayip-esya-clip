@@ -48,22 +48,18 @@ def check_format(data: bytes) -> None:
         raise ApiError(415, MSG_UNSUPPORTED)
 
 
-# Dosya dışındaki form alanları (başlık, açıklama vb.) için gövde sınırına eklenen pay.
-FORM_OVERHEAD_BYTES = 1024 * 1024
-
-
 class BodySizeLimitMiddleware:
-    """Gövdesi MAX_UPLOAD_MB + pay sınırını aşan istekleri 413 ile keser.
+    """Gövdesi MAX_UPLOAD_MB + UPLOAD_FORM_OVERHEAD_MB sınırını aşan istekleri 413 ile keser.
 
     Starlette multipart dosyaları sınırsız olarak /tmp'ye (compose'ta RAM) yazar ve read_upload
     sınırı ancak gövde bütünüyle alındıktan sonra uygular. Content-Length varsa gövde hiç okunmaz;
     yoksa (chunked) okunan bayt sayılır ve sınır aşılınca uygulamanın yanıtı 413 ile değiştirilir.
     """
 
-    def __init__(self, app, max_mb: int):
+    def __init__(self, app, max_mb: int, overhead_mb: int):
         self.app = app
         self.max_mb = max_mb
-        self.max_bytes = max_mb * 1024 * 1024 + FORM_OVERHEAD_BYTES
+        self.max_bytes = (max_mb + overhead_mb) * 1024 * 1024
 
     def _response(self) -> JSONResponse:
         return JSONResponse(status_code=413, content={"detail": msg_too_large(self.max_mb)})

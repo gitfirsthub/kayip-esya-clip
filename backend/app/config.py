@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     face_score_threshold: float = 0.6
     max_upload_mb: int = 8
     max_image_side: int = 1024
+    max_image_pixels: int = 50_000_000  # açılmadan önce reddedilir; telefon fotoğrafları 12–50 MP
+    upload_form_overhead_mb: int = 1  # gövde sınırı = MAX_UPLOAD_MB + bu pay (dosya dışı form alanları)
     torch_num_threads: int = 4
     match_high: float = 0.315
     match_medium: float = 0.255

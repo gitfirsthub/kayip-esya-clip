@@ -20,6 +20,8 @@ services:
       FACE_SCORE_THRESHOLD: ${FACE_SCORE_THRESHOLD:-0.6}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
       MAX_IMAGE_SIDE: ${MAX_IMAGE_SIDE:-1024}
+      MAX_IMAGE_PIXELS: ${MAX_IMAGE_PIXELS:-50000000}
+      UPLOAD_FORM_OVERHEAD_MB: ${UPLOAD_FORM_OVERHEAD_MB:-1}
       TORCH_NUM_THREADS: ${TORCH_NUM_THREADS:-4}
       MATCH_HIGH: ${MATCH_HIGH:-0.315}
       MATCH_MEDIUM: ${MATCH_MEDIUM:-0.255}
@@ -44,9 +46,9 @@ services:
     volumes:
       - app_data:/data
     # 1 MB üstü yüklemelerin geçici kopyası kalıcı diske yazılmasın (KVKK). Boyut sınırı RAM'i korur
-    # (gövde sınırı MAX_UPLOAD_MB + 1 MB; eşzamanlı birkaç yükleme ve tesseract geçici dosyaları sığar).
+    # (gövde sınırı MAX_UPLOAD_MB + UPLOAD_FORM_OVERHEAD_MB; eşzamanlı birkaç yükleme ve tesseract dosyaları sığar).
     tmpfs:
-      - /tmp:size=128m
+      - /tmp:size=${TMP_SIZE:-128m}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s

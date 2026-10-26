@@ -47,7 +47,7 @@ async def create_lost_report(
     if has_image:
         data = await read_upload(image, settings.max_upload_mb)
         try:
-            img = await run_in_threadpool(load_and_sanitize, data, settings.max_image_side)
+            img = await run_in_threadpool(load_and_sanitize, data, settings.max_image_side, settings.max_image_pixels)
         except InvalidImageError as exc:
             raise ApiError(400, exc.message)
         image_vec = (await run_in_threadpool(encoder.encode_images, [img]))[0]

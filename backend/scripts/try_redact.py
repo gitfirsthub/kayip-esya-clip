@@ -57,7 +57,7 @@ def main() -> int:
     t_total = time.perf_counter()
     try:
         t0 = time.perf_counter()
-        work = load_and_sanitize(data, max(settings.ocr_max_side, settings.max_image_side))
+        work = load_and_sanitize(data, max(settings.ocr_max_side, settings.max_image_side), settings.max_image_pixels)
         load_ms = _ms(t0)
         t0 = time.perf_counter()
         words = engine.run_ocr(work)

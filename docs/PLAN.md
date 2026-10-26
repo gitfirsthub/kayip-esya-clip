@@ -17,6 +17,9 @@ FACE_BLUR_ENABLED=true
 FACE_SCORE_THRESHOLD=0.6
 MAX_UPLOAD_MB=8
 MAX_IMAGE_SIDE=1024
+MAX_IMAGE_PIXELS=50000000                    # açılmadan önce reddedilir (Faz 8)
+UPLOAD_FORM_OVERHEAD_MB=1                    # gövde sınırı = MAX_UPLOAD_MB + bu pay (Faz 8)
+TMP_SIZE=128m                                # compose tmpfs /tmp boyutu (Faz 8)
 TORCH_NUM_THREADS=4
 MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
 MATCH_MEDIUM=0.255
