@@ -66,15 +66,20 @@ export default function FoundTab({ meta }: { meta: Meta }) {
   return (
     <section>
       <form className="panel" onSubmit={onSubmit} aria-busy={loading}>
-        <ImagePicker
-          label="Fotoğraf"
-          file={image}
-          maxMb={meta.max_upload_mb}
-          required
-          disabled={loading}
-          onChange={setImage}
-          onError={setError}
-        />
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Fotoğraf</legend>
+          <ImagePicker
+            label="Bulunan eşyanın fotoğrafı"
+            file={image}
+            maxMb={meta.max_upload_mb}
+            required
+            disabled={loading}
+            onChange={setImage}
+            onError={setError}
+          />
+        </fieldset>
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Eşya bilgileri</legend>
         <div className="field">
           <label htmlFor={`${uid}-title`}>Başlık</label>
           <input
@@ -102,6 +107,9 @@ export default function FoundTab({ meta }: { meta: Meta }) {
           />
           <span className="hint">En fazla 500 karakter.</span>
         </div>
+        </fieldset>
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Nerede ve ne zaman bulundu</legend>
         <div className="row">
           <div className="field">
             <label htmlFor={`${uid}-loc`}>Bulunduğu yer</label>
@@ -133,6 +141,9 @@ export default function FoundTab({ meta }: { meta: Meta }) {
             />
           </div>
         </div>
+        </fieldset>
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Teslim</legend>
         <div className="field">
           <label htmlFor={`${uid}-drop`}>Teslim noktası</label>
           <select
@@ -150,9 +161,13 @@ export default function FoundTab({ meta }: { meta: Meta }) {
           </select>
           <span className="hint">Eşyayı bu noktaya bırakın.</span>
         </div>
-        <button className="btn" type="submit" disabled={loading}>
-          {loading ? "Yükleniyor…" : "İlanı Kaydet"}
-        </button>
+        </fieldset>
+        <div className="form-actions">
+          <button className="btn" type="submit" disabled={loading}>
+            {loading && <Spinner inline />}
+            {loading ? "Yükleniyor…" : "İlanı Kaydet"}
+          </button>
+        </div>
       </form>
 
       <ErrorBox message={error} />

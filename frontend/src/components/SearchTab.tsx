@@ -67,6 +67,8 @@ export default function SearchTab({ meta }: { meta: Meta }) {
   return (
     <section>
       <form className="panel" onSubmit={onSubmit} aria-busy={loading}>
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Kayıp eşyanızı anlatın</legend>
         <div className="field">
           <label htmlFor={`${uid}-q`}>Kayıp eşyanızı tarif edin</label>
           <textarea
@@ -87,6 +89,9 @@ export default function SearchTab({ meta }: { meta: Meta }) {
           onChange={setImage}
           onError={setError}
         />
+        </fieldset>
+        <fieldset className="fieldset" disabled={loading}>
+          <legend>Aramayı daralt (isteğe bağlı)</legend>
         <div className="row">
           <div className="field">
             <label htmlFor={`${uid}-loc`}>Yer</label>
@@ -121,17 +126,24 @@ export default function SearchTab({ meta }: { meta: Meta }) {
             </select>
           </div>
         </div>
-        <button className="btn" type="submit" disabled={loading}>
-          {loading ? "Aranıyor…" : "Ara"}
-        </button>
-        <button
-          className="btn btn-secondary"
-          type="button"
-          disabled={loading || reporting}
-          onClick={() => void onReport()}
-        >
-          {reporting ? "Kaydediliyor…" : "Bulunursa haber almak için bildirim bırak"}
-        </button>
+        </fieldset>
+        <div className="form-actions">
+          <button className="btn" type="submit" disabled={loading}>
+            {loading && <Spinner inline />}
+            {loading ? "Aranıyor…" : "Ara"}
+          </button>
+        </div>
+        <div className="form-secondary">
+          <button
+            className="btn btn-secondary"
+            type="button"
+            disabled={loading || reporting}
+            onClick={() => void onReport()}
+          >
+            {reporting && <Spinner inline />}
+            {reporting ? "Kaydediliyor…" : "Bulunursa haber almak için bildirim bırak"}
+          </button>
+        </div>
         <p className="desc">Lütfen telefon numarası, TC kimlik no veya kişisel veri girmeyiniz.</p>
       </form>
 

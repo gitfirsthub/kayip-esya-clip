@@ -47,9 +47,12 @@ export default function TrackingBox() {
             onChange={(e) => setCode(e.target.value)}
           />
         </div>
-        <button className="btn" type="submit" disabled={loading}>
-          {loading ? "Kontrol ediliyor…" : "Kontrol et"}
-        </button>
+        <div className="form-actions">
+          <button className="btn" type="submit" disabled={loading}>
+            {loading && <Spinner inline />}
+            {loading ? "Kontrol ediliyor…" : "Kontrol et"}
+          </button>
+        </div>
       </form>
 
       <ErrorBox message={error} />
