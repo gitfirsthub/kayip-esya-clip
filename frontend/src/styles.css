@@ -197,6 +197,15 @@ textarea {
   font: inherit;
 }
 
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 .hint {
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -743,6 +752,12 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  html {
+    scroll-padding-bottom: 96px;
+  }
+  h1 {
+    font-size: var(--text-lg);
+  }
   .panel {
     padding: var(--space-4);
   }
@@ -769,6 +784,9 @@ textarea {
 }
 
 .weak summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
   cursor: pointer;
   font-weight: var(--weight-semibold);
   color: var(--brand);
