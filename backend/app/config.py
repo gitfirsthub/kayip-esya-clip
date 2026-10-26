@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     max_image_pixels: int = 50_000_000  # açılmadan önce reddedilir; telefon fotoğrafları 12–50 MP
     upload_form_overhead_mb: int = 1  # gövde sınırı = MAX_UPLOAD_MB + bu pay (dosya dışı form alanları)
     torch_num_threads: int = 4
-    match_high: float = 0.315
-    match_medium: float = 0.255
+    match_high: float = 0.37
+    match_medium: float = 0.31
     match_image_high: float = 0.87
     match_image_medium: float = 0.80
     admin_token: str = ""

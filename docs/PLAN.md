@@ -21,8 +21,8 @@ MAX_IMAGE_PIXELS=50000000                    # açılmadan önce reddedilir (Faz
 UPLOAD_FORM_OVERHEAD_MB=1                    # gövde sınırı = MAX_UPLOAD_MB + bu pay (Faz 8)
 TMP_SIZE=128m                                # compose tmpfs /tmp boyutu (Faz 8)
 TORCH_NUM_THREADS=4
-MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
-MATCH_MEDIUM=0.255
+MATCH_HIGH=0.37                              # Faz 8 eval ile SEARCH_TEXT_WEIGHT=0.1 için yeniden ayarlandı (docs/EVAL.md; Faz 6: 0.315)
+MATCH_MEDIUM=0.31                             # Faz 6: 0.255
 MATCH_IMAGE_HIGH=0.87                        # görsel-görsel eşikleri (Faz 8, kullanıcı kararı; docs/EVAL.md)
 MATCH_IMAGE_MEDIUM=0.80                      # Faz 7'de bildirim eşleşmesi için eklendi
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403); ADMIN_REJECT_WEAK_TOKENS=true iken change-me, ornek-* ve ADMIN_TOKEN_MIN_LEN'den kısa tokenlar yok sayılır (Faz 8)

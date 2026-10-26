@@ -175,7 +175,7 @@ API metin ve görsel arama için aynı eşik çiftini kullanıyordu (`MATCH_HIGH
 ### Karar
 - **`MATCH_IMAGE_HIGH = 0.87`:** en iyi yanlışların en büyüğü (0.8656), 0.005'e yukarı yuvarlandı. Metinde p90 kullanılıyor; görselde n=7 olduğu için daha temkinli olarak maksimum alındı. Doğruların %57'si (4/7) "yüksek" alıyor, hiçbir yanlış almıyor.
 - **`MATCH_IMAGE_MEDIUM = 0.80` (Faz 7'deki değer korundu):** betiğin Youden önerisi 0.85 (J=0.851). Ama iki doğru eşleşme sınırda (cüzdan 0.8519, tablet 0.8549); 0.85 bu ilanların bildirim eşleşmesini kaçırma riski doğurur. Bu eşik görselli kayıp bildiriminde eşleşmenin kaydedilip kaydedilmeyeceğini de belirlediği için, kaçırmak yanlış "orta" göstermekten daha kötü sayıldı.
-- **Metin + görsel birlikte:** skor 0.5·s_text + 0.5·s_img olduğu için eşikler de aynı oranda harmanlanır: yüksek 0.5·0.315 + 0.5·0.87 = 0.5925, orta 0.5·0.255 + 0.5·0.80 = 0.5275. Sorgu setinde birleşik sorgu olmadığı için bu eşikler ölçülmedi; formülden türetildi.
+- **Metin + görsel birlikte:** skor 0.5·s_text + 0.5·s_img olduğu için eşikler de aynı oranda harmanlanır. Metin eşikleri aşağıda yeniden ayarlandıktan sonra: yüksek 0.5·0.37 + 0.5·0.87 = 0.62, orta 0.5·0.31 + 0.5·0.80 = 0.555. Sorgu setinde birleşik sorgu olmadığı için bu eşikler ölçülmedi; formülden türetildi.
 
 | Düzey dağılımı (7 görsel sorgu) | Doğru ilan | En iyi yanlış |
 |---|---|---|
@@ -186,4 +186,24 @@ API metin ve görsel arama için aynı eşik çiftini kullanıyordu (`MATCH_HIGH
 
 ### Sınırlar
 - n=7; tek sorgu bir düzey sayısını değiştiriyor. Eşikler aynı veriyle ayarlanıp raporlandı (overfit olabilir).
-- Ek gözlem: aynı ölçümde betiğin metin eşiği önerisi 0.31/0.37 çıktı (yürürlükte 0.315/0.255). Fark, Faz 7B'de seçilen `SEARCH_TEXT_WEIGHT=0.1`'in metin skorlarını yukarı kaydırmasından geliyor; metin eşikleri bu ağırlıkla yeniden ayarlanmadı (kullanıcı kararına bırakıldı).
+- Ek gözlem: aynı ölçümde betiğin metin eşiği önerisi 0.31/0.37 çıktı; kullanıcı kararıyla metin eşikleri yeniden ayarlandı (aşağıda).
+
+## Faz 8: Metin eşiklerinin SEARCH_TEXT_WEIGHT=0.1 için yeniden ayarı (2026-10-26)
+Faz 6 eşikleri (0.315 / 0.255) `SEARCH_TEXT_WEIGHT=0.0` ile ayarlanmıştı. Faz 7B'de kullanıcı 0.1'i seçti; metin indeksinin katkısı metin skorlarını yukarı kaydırdı ve eski eşikler ayırt ediciliğini kaybetti. Ölçüm, yukarıdaki görsel eşik ölçümüyle aynı çalıştırma (24 ilan, w=0.1, 42 TR + 42 EN sorgu); yöntem Faz 6 ile aynı (orta: doğru vs. bütün yanlışlar Youden J; yüksek: en iyi yanlışların p90'ı).
+
+| Metin skor kümesi (TR+EN) | n | min | p10 | medyan | p90 | maks |
+|---|---|---|---|---|---|---|
+| Doğru ilan | 84 | 0.2865 | 0.3026 | 0.3358 | 0.3765 | 0.4071 |
+| En iyi yanlış | 84 | 0.2964 | 0.31 | 0.3383 | 0.3672 | 0.3803 |
+| Bütün yanlışlar | 1932 | 0.1891 | 0.2595 | 0.2876 | 0.3156 | 0.3803 |
+
+- **`MATCH_MEDIUM = 0.31`** (önce 0.255): Youden J = 0.689; doğruların %84,5'i, bütün yanlışların %15,6'sı, en iyi yanlışların %89'u geçiyor.
+- **`MATCH_HIGH = 0.37`** (önce 0.315): doğruların %15,5'i, en iyi yanlışların %9,5'i, bütün yanlışların %0,4'ü geçiyor.
+
+| Düzey dağılımı (84 metin sorgusu) | Doğru ilan | En iyi yanlış |
+|---|---|---|
+| Eski eşikler (0.315 / 0.255), w=0.1 | 62 yüksek, 22 orta | 71 yüksek, 13 orta |
+| Yeni eşikler (0.37 / 0.31) | 13 yüksek, 58 orta, 13 düşük | 8 yüksek, 67 orta, 9 düşük |
+
+- Yorum: eski eşiklerle metin aramasında da "yüksek" etiketi anlamını yitirmişti (en benzer yanlış ilanların %85'i "yüksek"). Yeni eşikler Faz 6'daki temkinli anlamı geri getiriyor: "yüksek" az verilir; "orta" "ilgili olabilir" demektir.
+- Bedel: doğru ilanların %15,5'i (13/84) "düşük" görünüyor ve metinli kayıp bildiriminde eşleşme olarak kaydedilmiyor (bildirim eşiği MATCH_MEDIUM). Sınırlar Faz 6 ile aynı: aynı veriyle ayarlandı, sorgular yapay zekâ tarafından yazıldı, n küçük.
