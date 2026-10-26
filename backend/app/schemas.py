@@ -16,6 +16,7 @@ class MetaResponse(BaseModel):
     categories: list[str]
     colors: list[str]
     max_upload_mb: int
+    found_date_max_days: int
 
 
 class Item(BaseModel):

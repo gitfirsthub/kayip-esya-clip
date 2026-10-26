@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     face_blur_enabled: bool = True
     face_score_threshold: float = 0.6
     max_upload_mb: int = 8
+    found_date_max_days: int = 60  # bulunma tarihi en fazla bu kadar gün geçmiş olabilir
     max_image_side: int = 1024
     max_image_pixels: int = 50_000_000  # açılmadan önce reddedilir; telefon fotoğrafları 12–50 MP
     upload_form_overhead_mb: int = 1  # gövde sınırı = MAX_UPLOAD_MB + bu pay (dosya dışı form alanları)

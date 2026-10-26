@@ -212,3 +212,11 @@ def test_get_item_and_404(api):
     r = api.get("/api/items/yok")
     assert r.status_code == 404
     assert r.json() == {"detail": "İlan bulunamadı."}
+
+
+def test_found_date_limit_comes_from_settings(api):
+    api.settings.found_date_max_days = 5
+    r = post_item(api, found_date=today(-6))
+    assert r.status_code == 422
+    assert r.json() == {"detail": "Bulunma tarihi en fazla 5 gün öncesi olabilir."}
+    assert post_item(api, found_date=today(-5)).status_code == 201

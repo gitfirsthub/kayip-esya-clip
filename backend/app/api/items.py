@@ -25,7 +25,6 @@ logger = logging.getLogger("app.items")
 router = APIRouter(prefix="/api", dependencies=[Depends(require_ready)])
 
 TURKEY_TZ = timezone(timedelta(hours=3))  # Türkiye'de yaz saati yok; tzdata gerektirmez.
-MAX_PAST_DAYS = 60
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 MSG_NO_IMAGE = "Lütfen bir fotoğraf yükleyin."
@@ -35,7 +34,8 @@ MSG_LOCATION = "Geçersiz yer."
 MSG_DROPOFF = "Geçersiz teslim noktası."
 MSG_DATE_FORMAT = "Geçersiz tarih biçimi (YYYY-AA-GG)."
 MSG_DATE_FUTURE = "Bulunma tarihi gelecekte olamaz."
-MSG_DATE_OLD = "Bulunma tarihi en fazla 60 gün öncesi olabilir."
+def msg_date_old(max_days: int) -> str:
+    return f"Bulunma tarihi en fazla {max_days} gün öncesi olabilir."
 MSG_BLUR_UNAVAILABLE = "Yüz bulanıklaştırma şu an kullanılamıyor; ilan kaydedilemedi."
 MSG_BLUR_FAILED = "Yüz bulanıklaştırma başarısız oldu; ilan kaydedilemedi."
 MSG_OCR_FAILED = "Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."
@@ -74,7 +74,7 @@ def redact_and_shrink(img: Image.Image, words, faces: int, brands, max_side: int
     return img, redaction, tags
 
 
-def parse_found_date(value: str | None) -> date:
+def parse_found_date(value: str | None, max_past_days: int) -> date:
     if not value or not DATE_RE.match(value.strip()):
         raise ApiError(422, MSG_DATE_FORMAT)
     try:
@@ -84,12 +84,14 @@ def parse_found_date(value: str | None) -> date:
     today = datetime.now(TURKEY_TZ).date()
     if parsed > today:
         raise ApiError(422, MSG_DATE_FUTURE)
-    if (today - parsed).days > MAX_PAST_DAYS:
-        raise ApiError(422, MSG_DATE_OLD)
+    if (today - parsed).days > max_past_days:
+        raise ApiError(422, msg_date_old(max_past_days))
     return parsed
 
 
-def validate_fields(title, description, location, found_date, dropoff_point, campus: dict) -> dict:
+def validate_fields(
+    title, description, location, found_date, dropoff_point, campus: dict, max_past_days: int
+) -> dict:
     title = (title or "").strip()
     if not 3 <= len(title) <= 80:
         raise ApiError(422, MSG_TITLE)
@@ -98,7 +100,7 @@ def validate_fields(title, description, location, found_date, dropoff_point, cam
         raise ApiError(422, MSG_DESCRIPTION)
     if location not in campus["locations"]:
         raise ApiError(422, MSG_LOCATION)
-    parsed = parse_found_date(found_date)
+    parsed = parse_found_date(found_date, max_past_days)
     if dropoff_point not in campus["dropoff_points"]:
         raise ApiError(422, MSG_DROPOFF)
     return {
@@ -130,7 +132,9 @@ async def create_item(
     if image is None:
         raise ApiError(422, MSG_NO_IMAGE)
     data = await read_upload(image, settings.max_upload_mb)
-    fields = validate_fields(title, description, location, found_date, dropoff_point, campus)
+    fields = validate_fields(
+        title, description, location, found_date, dropoff_point, campus, settings.found_date_max_days
+    )
     # OCR açıkken çalışma kopyası OCR_MAX_SIDE'ta tutulur; küçük metin okunabilsin.
     work_side = max(settings.ocr_max_side, settings.max_image_side) if settings.ocr_enabled else settings.max_image_side
     try:

@@ -16,7 +16,7 @@ export default function FoundTab({ meta }: { meta: Meta }) {
   const uid = useId();
   const today = new Date();
   const minDate = new Date();
-  minDate.setDate(minDate.getDate() - 60);
+  minDate.setDate(minDate.getDate() - meta.found_date_max_days);
   const maxStr = toDateString(today);
   const minStr = toDateString(minDate);
 

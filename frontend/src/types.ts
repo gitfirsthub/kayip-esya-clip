@@ -28,6 +28,7 @@ export interface Meta {
   categories: string[];
   colors: string[];
   max_upload_mb: number;
+  found_date_max_days: number;
 }
 
 export interface ItemList {

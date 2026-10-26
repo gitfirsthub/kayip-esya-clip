@@ -15,4 +15,5 @@ async def meta(campus: dict = Depends(get_campus), settings: Settings = Depends(
         categories=[c["tr"] for c in campus["categories"]],
         colors=[c["tr"] for c in campus["colors"]],
         max_upload_mb=settings.max_upload_mb,
+        found_date_max_days=settings.found_date_max_days,
     )

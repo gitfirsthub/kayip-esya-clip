@@ -16,6 +16,7 @@ FACE_MODEL_PATH=/models/face_detection_yunet_2023mar.onnx
 FACE_BLUR_ENABLED=true
 FACE_SCORE_THRESHOLD=0.6
 MAX_UPLOAD_MB=8
+FOUND_DATE_MAX_DAYS=60                       # Faz 8; /api/meta'da da döner
 MAX_IMAGE_SIDE=1024
 MAX_IMAGE_PIXELS=50000000                    # açılmadan önce reddedilir (Faz 8)
 UPLOAD_FORM_OVERHEAD_MB=1                    # gövde sınırı = MAX_UPLOAD_MB + bu pay (Faz 8)
@@ -43,9 +44,9 @@ LOG_LEVEL=INFO
 
 ## API sözleşmesi
 - GET /health → 200 {"status":"ok","models_loaded":true,"face_blur":true,"ocr":true,"item_count":N,"version":"x.y.z"}; modeller yüklenirken 503 {"status":"loading"}.
-- GET /api/meta → {"locations":[...], "dropoff_points":[...], "categories":[...], "colors":[...], "max_upload_mb":8}
+- GET /api/meta → {"locations":[...], "dropoff_points":[...], "categories":[...], "colors":[...], "max_upload_mb":8, "found_date_max_days":60}
 - POST /api/items (multipart; bulunan eşya kaydı):
-  image (zorunlu; jpeg/png/webp; ≤ MAX_UPLOAD_MB), title (3–80 karakter), description (0–500), location (meta.locations'tan), found_date (YYYY-MM-DD, gelecek olamaz, en fazla 60 gün geçmiş), dropoff_point (meta.dropoff_points'ten).
+  image (zorunlu; jpeg/png/webp; ≤ MAX_UPLOAD_MB), title (3–80 karakter), description (0–500), location (meta.locations'tan), found_date (YYYY-MM-DD, gelecek olamaz, en fazla FOUND_DATE_MAX_DAYS (60) gün geçmiş), dropoff_point (meta.dropoff_points'ten).
   İşlem sırası (Faz 7A ile güncellendi): tür ve boyut doğrulama → Pillow açma ve verify → EXIF transpose → EXIF silme → en uzun kenarı OCR_MAX_SIDE'a küçültülmüş çalışma kopyası → yerel OCR (orijinal pikseller, sansürden önce) → PII tespiti → YuNet yüz bulanıklaştırma + PII kutularını siyah dolu dikdörtgenle kapatma → MAX_IMAGE_SIDE'a küçültme → JPEG (q=85) kaydetme → görsel embedding'i (sansürlü görselden) → zero-shot kategori ve renk etiketi → güvenli marka/model etiketleri → metin embedding'i (başlık + açıklama + etiketler) → SQLite. Yanıt: 201 + Item.
   OCR hata verir, zaman aşımına uğrar veya tesseract yoksa: 503 {"detail":"Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."}, dosya kaydedilmez.
   Item: {id, title, description, location, found_date, dropoff_point, image_url, category, category_score, color, faces_blurred, tags:[str], redacted_regions:int, document_like:bool, status:"bekliyor"|"teslim_edildi", created_at}
