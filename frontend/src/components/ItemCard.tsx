@@ -51,6 +51,7 @@ function BoxIcon() {
 
 export default function ItemCard({ item, score, level, showTags }: Props) {
   const [imgDone, setImgDone] = useState(false);
+  const tags = item.tags ?? [];
 
   return (
     <article className="card item-card">
@@ -105,6 +106,21 @@ export default function ItemCard({ item, score, level, showTags }: Props) {
           </dl>
         )}
         {item.description && <p className="desc">{item.description}</p>}
+        {(tags.length > 0 || item.redacted_regions > 0) && (
+          <ul className="chips" aria-label="Etiketler">
+            {tags.map((t) => (
+              <li className="chip" key={t}>
+                {t}
+              </li>
+            ))}
+            {item.redacted_regions > 0 && (
+              <li className="chip chip-info">{item.redacted_regions} bölge gizlendi</li>
+            )}
+          </ul>
+        )}
+        {item.document_like && (
+          <p className="doc-note">Belge benzeri görsel: yazılar gizlendi</p>
+        )}
       </div>
     </article>
   );

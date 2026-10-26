@@ -15,6 +15,9 @@ export interface Item {
   category_score: number;
   color: string;
   faces_blurred: number;
+  tags: string[];
+  redacted_regions: number;
+  document_like: boolean;
   status: ItemStatus;
   created_at: string;
 }

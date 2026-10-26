@@ -57,7 +57,19 @@ export default function App() {
             Bulunan eşyaları ve kayıp ilanlarını yapay zekâ ile anlamsal olarak eşleştirerek eşyanı
             bulmana yardım ederiz.
           </p>
-          <p className="privacy">Yüzler otomatik bulanıklaştırılır, iletişim bilgisi istenmez.</p>
+          <p className="privacy chip chip-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Yüzler otomatik bulanıklaştırılır, iletişim bilgisi istenmez.
+          </p>
         </div>
       </header>
       <main>
