@@ -72,6 +72,17 @@ def test_missing_upload_on_fresh_install_is_404(api):
     assert r.json() == {"detail": "Kaynak bulunamadı."}
 
 
+BAD_REQUEST = {"detail": "İstek okunamadı. Lütfen formu yeniden gönderin."}
+
+
+def test_malformed_multipart_is_turkish(api):
+    # Starlette'in İngilizce mesajları ("Invalid multipart data.", "Missing boundary in multipart.") sızmamalı.
+    for ctype, body in (("multipart/form-data; boundary=b", b"rastgele"), ("multipart/form-data", b"x")):
+        r = api.post("/api/search", content=body, headers={"Content-Type": ctype})
+        assert r.status_code == 400
+        assert r.json() == BAD_REQUEST
+
+
 def test_uploads_path_traversal_blocked(api):
     r = api.get("/uploads/../app.db")
     assert r.status_code == 404

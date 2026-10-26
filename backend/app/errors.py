@@ -10,7 +10,9 @@ logger = logging.getLogger("app.errors")
 GENERIC_ERROR = "Beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin."
 VALIDATION_ERROR = "Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edin."
 
+# Çatının (FastAPI/Starlette) İngilizce mesajlarının Türkçe karşılıkları.
 HTTP_MESSAGES = {
+    400: "İstek okunamadı. Lütfen formu yeniden gönderin.",
     404: "Kaynak bulunamadı.",
     405: "Bu yönteme izin verilmiyor.",
 }
@@ -41,7 +43,8 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_handler(request: Request, exc: HTTPException):
         detail = exc.detail if isinstance(exc.detail, str) else GENERIC_ERROR
-        if detail in ("Not Found", "Method Not Allowed"):
+        # 400: gövde ayrıştırma hataları ("Invalid multipart data." vb.); 404/405: yönlendirici varsayılanları.
+        if exc.status_code == 400 or detail in ("Not Found", "Method Not Allowed"):
             detail = HTTP_MESSAGES[exc.status_code]
         return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=exc.headers)
 
