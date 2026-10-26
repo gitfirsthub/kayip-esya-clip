@@ -1,0 +1,182 @@
+# Etiket izin listesi: OCR metninden YALNIZCA bu markalar (ve model kodu deseni) etiket olabilir.
+# Satır başına bir marka, küçük harf. Çok sözcüklü markalar boşlukla yazılır ("the north face").
+# Tire ve kesme işareti eşleşmede yok sayılır ("ray-ban" = "ray ban", "levi's" = "levis").
+# Kapsam: kampüste kaybolabilecek eşyalar (telefon, kulaklık, hesap makinesi, kırtasiye, çanta,
+# giyim/ayakkabı, saat, matara/termos, bilgisayar aksesuarı).
+# Bilerek DIŞARIDA bırakılanlar (kişi adı/soyadı ya da yaygın sözcük olabilecekler; kullanıcı
+# etiketinde isim sızmasın, aramada yanlış eşleşme olmasın): casper, parker, adel, braun, marshall,
+# kipling, salomon, korkmaz, calvin klein, tommy hilfiger, ralph lauren, michael kors, hugo boss,
+# daniel wellington, jack wolfskin, pierre cardin, mavi, polo, gap, next, mango, guess, police,
+# monster, nothing, pixel, surface, switch, sharp, citizen, trust, oakley, herschel.
+# İstisna: "stanley" bir ad olarak da kullanılır; şartnamede örnek verildiği için listede.
+# Kullanıcı gözden geçirecek.
+
+# Telefon, tablet, bilgisayar
+apple
+iphone
+ipad
+macbook
+airpods
+samsung
+galaxy
+xiaomi
+redmi
+poco
+huawei
+honor
+oppo
+realme
+vivo
+oneplus
+google
+nokia
+motorola
+general mobile
+reeder
+tecno
+infinix
+lenovo
+thinkpad
+dell
+hp
+asus
+acer
+msi
+microsoft
+toshiba
+amazon
+kindle
+
+# Ses
+sony
+jbl
+bose
+beats
+sennheiser
+jabra
+skullcandy
+edifier
+soundcore
+audio-technica
+plantronics
+philips
+
+# Şarj, kablo, bilgisayar aksesuarı, depolama
+anker
+baseus
+ugreen
+belkin
+ttec
+hama
+tp-link
+logitech
+razer
+steelseries
+hyperx
+corsair
+rampage
+kingston
+sandisk
+seagate
+western digital
+transcend
+lexar
+targus
+case logic
+
+# Oyun, kamera
+playstation
+xbox
+nintendo
+canon
+nikon
+fujifilm
+gopro
+dji
+
+# Saat, giyilebilir
+casio
+g-shock
+swatch
+fossil
+seiko
+timex
+garmin
+fitbit
+amazfit
+tissot
+
+# Hesap makinesi
+texas instruments
+karce
+
+# Kırtasiye
+lamy
+faber-castell
+staedtler
+pelikan
+stabilo
+pentel
+pilot
+uni-ball
+bic
+rotring
+moleskine
+zebra
+gipta
+montblanc
+
+# Çanta
+eastpak
+jansport
+the north face
+samsonite
+deuter
+osprey
+quechua
+decathlon
+fjallraven
+nike
+adidas
+
+# Giyim, ayakkabı
+puma
+new balance
+under armour
+reebok
+asics
+skechers
+converse
+vans
+columbia
+lumberjack
+timberland
+kinetix
+hummel
+umbro
+fila
+kappa
+lc waikiki
+defacto
+koton
+zara
+h&m
+uniqlo
+levi's
+ray-ban
+
+# Matara, termos, beslenme kabı
+stanley
+contigo
+thermos
+hydro flask
+nalgene
+camelbak
+tupperware
+lock&lock
+owala
+emsan
+
+# Diğer kişisel eşya
+victorinox
+zippo
