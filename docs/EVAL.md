@@ -126,3 +126,33 @@ Uygulanamadı. Yeni sette siyah sırt çantası yok: çantalar gri melanj, gri-l
 - **Siyah ve benzer eşyalar yoğun:** R@1 bu yüzden düşük. Bu demo setinin bir özelliği; kampüs genelindeki eşya dağılımını temsil ettiği varsayılamaz.
 - **İngilizce sorgular** Türkçe sorguların elle yapılmış çevirisi; bağımsız yazılmış İngilizce sorgular değil.
 - **Sorguları yapay zekâ (ml-engineer alt agent'ı) görselleri görerek yazdı; kullanıcı tek tek gözden geçirmedi.** PLAN kullanıcının yazdığı sorguları öngörüyordu. Marka ve görselden okunan ayrıntılar kullanılmadı, yine de gerçek kullanıcı sorgularından daha "isabetli" olabilirler; sonuçlar bu yönde iyimser olabilir.
+
+## Faz 7A: OCR sansürü ve ilan metin indeksi, önce/sonra (2026-10-26)
+
+### Ortam
+- ÖNCE: Faz 7 imajı (OCR yok), çalışan `docker compose` backend'i, 23 ilan (21 demo ilanı + Faz 7 testlerinden kalan 2 ilan; eval yalnızca demo ilanlarını hedefler, fazla ilanlar yanlış aday olarak sayıya girer).
+- SONRA: Faz 7A imajı (tesseract 5.5.0, tur+eng), ayrı bir compose projesinde (`-p kayip7a`, port 18000, boş volume) `seed_demo.py` ile 21 demo ilanı OCR'lı hattan yeniden yüklendi. Her ağırlık için backend `SEARCH_TEXT_WEIGHT` değiştirilerek yeniden başlatıldı; `TAG_BONUS=0.05`, `TAG_BONUS_MAX=0.10` hepsinde açık.
+- Sorgular ve modeller Faz 6 ile aynı (42 TR, 42 EN, 7 görsel).
+
+### Sonuçlar
+
+| Durum | TR R@1 | TR R@5 | TR MRR | EN R@1 | EN R@5 | EN MRR | Görsel R@1 | Görsel R@5 |
+|---|---|---|---|---|---|---|---|---|
+| ÖNCE (Faz 7, OCR yok) | 0.524 | 0.857 | 0.657 | 0.595 | 0.857 | 0.717 | 0.857 | 1.000 |
+| SONRA, w=0.0 (yalnızca OCR sansürü + etiket bonusu) | 0.524 | 0.857 | 0.656 | 0.595 | 0.857 | 0.716 | 0.857 | 1.000 |
+| SONRA, w=0.2 | 0.452 | 0.905 | 0.641 | 0.571 | 0.881 | 0.720 | 0.857 | 1.000 |
+| SONRA, w=0.3 | 0.405 | 0.833 | 0.613 | 0.548 | 0.905 | 0.699 | 0.857 | 1.000 |
+| SONRA, w=0.5 | 0.452 | 0.810 | 0.618 | 0.524 | 0.905 | 0.679 | 0.857 | 1.000 |
+| SONRA, w=0.7 | 0.333 | 0.786 | 0.536 | 0.429 | 0.810 | 0.610 | 0.857 | 1.000 |
+
+w = `SEARCH_TEXT_WEIGHT`; metin sorgusunda s_text = (1-w)·cos(sorgu, ilan görseli) + w·cos(sorgu, ilan metni) + etiket bonusu. Görsel sorgular metin indeksinden etkilenmez.
+
+### Yorum
+- **OCR sansürü aramayı bozmadı:** w=0.0'da sonuçlar ÖNCE ile aynı; MRR'deki 0.001'lik fark, saat ilanının görselindeki yeni siyah bantlardan geliyor (aşağıda).
+- **Etiket bonusu bu sette ölçülemedi:** 21 demo ilanının hiçbirinden marka/model etiketi çıkmadı (izin listesindeki bir marka okunmadı) ve sorgularda marka yok. Bonusun etkisi yalnızca birim/API testleriyle doğrulandı (eşleşme başına +0.05, en çok +0.10).
+- **Metin indeksi net bir kazanç sağlamadı:** w=0.2 TR R@5'i 0.857'den 0.905'e çıkarıyor (2 sorgu), ama TR R@1 0.524'ten 0.452'ye, TR MRR 0.657'den 0.641'e düşüyor. w ≥ 0.3'te TR R@5 de düşüyor. Metin-metin benzerlikleri benzer başlıklı ilanları (ör. üç "kulaklık kutusu") birbirine yaklaştırıyor; doğru ilanı 1. sıraya çıkarmak yerine ilk 5'e topluyor.
+- **Karar: `SEARCH_TEXT_WEIGHT=0.0` (varsayılan) bırakıldı.** Metin indeksi saklanıyor ve eski ilanlar için dolduruluyor, ama skora katkısı kapalı. Gerekçe: R@1 ve MRR düşüşü, n'nin küçüklüğü (tek sorgu TR R@5'i 0.024 değiştiriyor) ve ilan başlıklarıyla sorguların aynı kaynaktan (yapay zekâ) yazılmış olması; bu, metin-metin eşleşmesini gerçek kullanıma göre iyimser gösterir. Eşikler (`MATCH_HIGH`, `MATCH_MEDIUM`) w=0 ile değişmediği için yeniden ayarlanmadı.
+
+### OCR'ın demo ilanlarına etkisi
+- 21 ilandan 20'sinde sansür kutusu yok, `document_like=false`, etiket yok.
+- "Yeşil kadranlı metal kol saati": YuNet kadranı yüz sanıyor (Faz 6'daki bilinen sorun) ve OCR kadrandaki işaretlerden ≥ 8 "kelime" okuyor; bu yüzden ilan **belge benzeri** sayıldı ve 12 bölge siyahla kapatıldı. Gizlilik açısından güvenli yönde bir hata, ama ilan görselini daha da bozuyor. Kullanıcı kararına bırakıldı.
