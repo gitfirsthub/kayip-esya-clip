@@ -26,6 +26,15 @@ services:
       MATCH_IMAGE_MEDIUM: ${MATCH_IMAGE_MEDIUM:-0.80}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      OCR_ENABLED: ${OCR_ENABLED:-true}
+      OCR_LANGS: ${OCR_LANGS:-tur+eng}
+      OCR_MAX_SIDE: ${OCR_MAX_SIDE:-1600}
+      OCR_TIMEOUT_S: ${OCR_TIMEOUT_S:-8}
+      OCR_MIN_CONF: ${OCR_MIN_CONF:-30}
+      OMP_THREAD_LIMIT: ${OMP_THREAD_LIMIT:-1}
+      SEARCH_TEXT_WEIGHT: ${SEARCH_TEXT_WEIGHT:-0.0}
+      TAG_BONUS: ${TAG_BONUS:-0.05}
+      TAG_BONUS_MAX: ${TAG_BONUS_MAX:-0.10}
       # Çalışma zamanında bulut/ağ erişimi olmasın; .env bunu ezemez.
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"

@@ -9,6 +9,13 @@ ARG TORCH_VERSION=2.14.1
 
 WORKDIR /srv
 
+# Yerel OCR (Faz 7A): torch katmanından önce, ayrı katman
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+# tesseract'ın OpenMP iş parçacıkları torch ile çakışmasın
+ENV OMP_THREAD_LIMIT=1
+
 RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VERSION}"
 
 COPY requirements.txt .

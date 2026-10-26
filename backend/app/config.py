@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     match_medium: float = 0.255
     match_image_medium: float = 0.80
     admin_token: str = ""
+    ocr_enabled: bool = True
+    ocr_langs: str = "tur+eng"
+    ocr_max_side: int = 1600
+    ocr_timeout_s: float = 8
+    ocr_min_conf: float = 30
+    omp_thread_limit: int = 1
+    search_text_weight: float = 0.0
+    tag_bonus: float = 0.05
+    tag_bonus_max: float = 0.10
     log_level: str = "INFO"
 
     @property
