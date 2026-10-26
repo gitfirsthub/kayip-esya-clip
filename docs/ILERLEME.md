@@ -7,7 +7,7 @@
 | 2 ML çekirdeği | ✅ | 2026-10-26 | image_io, ClipEncoder/FakeEncoder, YuNet yüz bulanıklaştırma (kapalı-güvenli), tagger, SQLite deposu + vektör arama, smoke ve try_blur betikleri; 44 test geçti; imaj internetsiz açılıyor (face_blur=true). "siyah sırt çantası top-3" kontrolü Faz 6'ya ertelendi (demo_data yok) |
 | 3 API | ✅ | 2026-10-26 | /api/meta, /api/items (POST/GET/liste), /api/search, admin PATCH/DELETE, /uploads statik; 83 test geçti; imaj gerçek modelle curl ile denendi (aşağıdaki Ölçümler) |
 | 4 Frontend | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | React 19.3.1 + Vite 8.3.5 + TS 7.0.2; üç sekme (arama, yükleme, liste); `npm run build` ve `tsc` hatasız; nginx imajı build oldu, SPA fallback 200; backend ile CORS preflight geçti; spec-guard kritik ihlal yok |
-| 5 Compose | ⬜ | | |
+| 5 Compose | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | docker-compose.yml (PLAN tanımı), .env.example notları; `.env`siz temiz klonda tek komutla ayağa kalktı; meta/yükleme/arama curl ile geçti; amd64 backend build'i başarılı; spec-guard kritik kod ihlali yok |
 | 6 Eval | ⬜ | | |
 | 7 Ek: kayıp bildirimi | ⬜ | | |
 | 8 Denetim | ⬜ | | |
@@ -27,12 +27,17 @@
 
 - Faz 4 kararları: `@types/react` ve `@types/react-dom` (yalnızca tip paketleri) kullanıcı onayıyla eklendi. Sürümler `^` olmadan sabit. Arama `top_k` ve `include_returned` göndermiyor (varsayılanlar: 12, false); teslim edilmiş ilanlar yalnızca Tüm İlanlar'da görünür. Sekme değişince form durumu sıfırlanır. Dockerfile'da `ARG VITE_API_URL` varsayılanı `http://localhost:8000`; Faz 5'te compose build arg olarak geçirecek.
 
+- Faz 5 kararları: compose'ta `BACKEND_PORT` yalnızca host portunu belirler (konteyner içi 8000 sabit). `HF_HUB_OFFLINE` ve `TRANSFORMERS_OFFLINE` compose `environment` bloğunda sabit "1" (spec-guard uyarısı; `.env` ezemesin diye). `tmpfs: /tmp` (Fikir Havuzu) HENÜZ eklenmedi, onay bekliyor. Frontend nginx'inde `/api` proxy'si YOK; tarayıcı API'ye doğrudan `VITE_API_URL` ile gider (docker-tester'ın "nginx üzerinden 200" bulgusu SPA fallback'ti, yanlış okumaydı).
+
 ## Fikir Havuzu (kapsam dışı, onay bekleyen)
+- Faz 5 spec-guard notları: (a) `.env.example` içindeki `ADMIN_TOKEN=change-me` tahmin edilebilir; README'de `openssl rand -hex 16` önerisi (Faz 9) veya backend'in `change-me`yi reddetmesi. (b) YuNet indirmesine SHA-256 doğrulaması. (c) Frontend servisine healthcheck. (d) `VITE_API_URL` derleme zamanında gömülür; değiştirmek için yeniden build gerekir, README'ye yazılacak (Faz 9).
 - Faz 3 spec-guard uyarısı (CLAUDE.md madde 6): Starlette `UploadFile` 1 MB üstü yüklemeleri sistem tmp'sine (`SpooledTemporaryFile`) yazabilir; bu geçici kopya bulanıklaştırılmamış olabilir. Kodda ele alınmadı. Öneri: Faz 5'te compose'a `tmpfs: /tmp` ekle (kalıcı diske hiç yazılmaz), README'ye bilinen sınırlama olarak yaz. Kullanıcı onayı bekliyor.
 - Faz 3 spec-guard notu: `ADMIN_TOKEN=change-me` örnek değerdir; README'de değiştirilmesi gerektiği yazılacak (Faz 9).
 - Faz 5: BACKEND_PORT backend'de okunmuyor (CMD 8000 sabit); compose'da portu eşle veya .env.example'dan çıkar (spec-guard notu).
 
 ## Ölçümler (build süresi, imaj boyutu, gecikmeler)
+- Faz 5 (Apple M4 Pro, Docker 8 GB): temiz klonda `docker compose build --no-cache` 216 sn (soğuk, torch + modeller inerek); `buildx --platform linux/amd64 ./backend` 235 sn, x86_64 torch tekerleği (`manylinux_2_28_x86_64`) indi, YuNet indi; amd64 imajı ÇALIŞTIRILMADI (yalnızca build). İmajlar: backend 4.11 GB (sıkıştırılmış ~1.34 GB), frontend 93.6 MB.
+- Faz 5 temiz klon (`.env`siz, önbellekli build 7.8 sn): /health ilk denemede ok; /api/meta 12 ms; POST /api/items 201 116 ms (şemsiye 0.997, mavi); metinle arama 37 ms (skor 0.323 yüksek), görselle arama 75 ms (skor 1.0); backend restart sonrası item_count korundu (app_data); kullanıcı uid 10001; HF_HUB_OFFLINE=1.
 - Faz 4: frontend imajı 93.6 MB (nginx:alpine + dist); derlenmiş JS 234.9 kB (gzip 73.3 kB), CSS 3.8 kB.
 - Faz 1: ilk backend build'i 223 sn (torch CPU + 2 model + YuNet indirme); imaj 4.11 GB (chown katmanı kaldırıldıktan sonra; öncesi 6.16 GB). Kod değişikliğiyle yeniden build 1 sn, model katmanı CACHED.
 - Faz 1: `docker run --network none` ile /health 200 (`docker exec` ile doğrulandı; `--network none` ile host portu yayınlanamaz); ağlı çalıştırmada localhost:8000/health 200, models_loaded=true, face_blur=true.
