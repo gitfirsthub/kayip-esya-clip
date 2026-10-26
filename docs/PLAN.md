@@ -20,8 +20,10 @@ MAX_IMAGE_SIDE=1024
 TORCH_NUM_THREADS=4
 MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
 MATCH_MEDIUM=0.255
-ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403); change-me, ornek-* ve 12 karakterden kısa tokenlar yok sayılır (Faz 8)
+ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403); ADMIN_REJECT_WEAK_TOKENS=true iken change-me, ornek-* ve ADMIN_TOKEN_MIN_LEN'den kısa tokenlar yok sayılır (Faz 8)
 ADMIN_POINT_TOKENS={}                        # JSON {"<teslim noktası>":"<token>"}; nokta tokenı yalnızca o noktanın ilanlarını yönetir (Faz 7B)
+ADMIN_REJECT_WEAK_TOKENS=true                # false yalnızca yerel prototip (Faz 8, kullanıcı kararı)
+ADMIN_TOKEN_MIN_LEN=12
 OCR_ENABLED=true                             # Faz 7A; false yalnızca geliştirme amaçlı
 OCR_LANGS=tur+eng
 OCR_MAX_SIDE=1600

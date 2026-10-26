@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import MIN_TOKEN_LEN, Settings, get_settings
+from app.config import Settings, get_settings
 from app.api import admin as admin_api
 from app.api import items as items_api
 from app.api import lost_reports as lost_reports_api
@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
             "%d yönetici tokenı örnek değer ya da %d karakterden kısa olduğu için yok sayıldı; "
             "gerçek token üretin (ör. openssl rand -hex 16).",
             settings.ignored_admin_tokens,
-            MIN_TOKEN_LEN,
+            settings.admin_token_min_len,
         )
     threading.Thread(target=_load, args=(app, settings), daemon=True).start()
     yield

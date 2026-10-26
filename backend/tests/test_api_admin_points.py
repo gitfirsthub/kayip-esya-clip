@@ -102,3 +102,13 @@ def test_ignored_tokens_are_counted_without_values():
     assert not s.admin_token_usable
     assert s.point_tokens == {KUTUPHANE: T_KUT}
     assert s.ignored_admin_tokens == 2
+
+
+def test_weak_token_rejection_can_be_disabled_and_min_len_configured(api):
+    lax = Settings(data_dir=api.settings.data_dir, admin_token="change-me", admin_reject_weak_tokens=False)
+    api.app.dependency_overrides[get_settings] = lambda: lax
+    assert api.get("/api/admin/me", headers=hdr("change-me")).json() == {"scope": None}
+    strict = Settings(data_dir=api.settings.data_dir, admin_token=ADMIN_TOKEN, admin_token_min_len=len(ADMIN_TOKEN) + 1)
+    api.app.dependency_overrides[get_settings] = lambda: strict
+    assert api.get("/api/admin/me", headers=hdr(ADMIN_TOKEN)).status_code == 403
+    assert strict.ignored_admin_tokens == 1

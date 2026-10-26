@@ -53,7 +53,7 @@ def require_admin(
     """Yetkili kapsamı döndürür: None = tüm noktalar (genel token), str = tek teslim noktası.
 
     Bütün adaylar sabit zamanlı karşılaştırılır; ilk eşleşmede erken çıkılmaz.
-    Örnek değerli veya kısa tokenlar (config.token_usable) hiç aday sayılmaz.
+    Örnek değerli veya kısa tokenlar (Settings.token_usable) hiç aday sayılmaz.
     """
     if not x_admin_token:
         raise ApiError(403, MSG_FORBIDDEN)

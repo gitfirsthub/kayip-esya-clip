@@ -3,18 +3,9 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# .env.example'daki örnek değerler ve kısa tokenlar yetki vermez (depoda açıkça yazılılar).
+# .env.example'daki örnek değerler (depoda açıkça yazılılar). Ayar değil, örnek dosyanın içeriğidir.
 PLACEHOLDER_TOKENS = frozenset({"change-me"})
 PLACEHOLDER_PREFIX = "ornek-"
-MIN_TOKEN_LEN = 12
-
-
-def token_usable(token: str) -> bool:
-    return (
-        len(token) >= MIN_TOKEN_LEN
-        and token not in PLACEHOLDER_TOKENS
-        and not token.startswith(PLACEHOLDER_PREFIX)
-    )
 
 
 class Settings(BaseSettings):
@@ -36,6 +27,9 @@ class Settings(BaseSettings):
     match_image_medium: float = 0.80
     admin_token: str = ""
     admin_point_tokens: str = ""  # JSON: {"<teslim noktası>": "<token>"}
+    # true: örnek değerli ve admin_token_min_len'den kısa tokenlar yetki vermez. false yalnızca yerel prototip içindir.
+    admin_reject_weak_tokens: bool = True
+    admin_token_min_len: int = 12
     ocr_enabled: bool = True
     ocr_langs: str = "tur+eng"
     ocr_max_side: int = 1600
@@ -58,11 +52,22 @@ class Settings(BaseSettings):
             return {}
         if not isinstance(data, dict):
             return {}
-        return {str(k): v for k, v in data.items() if isinstance(v, str) and token_usable(v)}
+        return {str(k): v for k, v in data.items() if isinstance(v, str) and self.token_usable(v)}
+
+    def token_usable(self, token: str) -> bool:
+        if not token:
+            return False
+        if not self.admin_reject_weak_tokens:
+            return True
+        return (
+            len(token) >= self.admin_token_min_len
+            and token not in PLACEHOLDER_TOKENS
+            and not token.startswith(PLACEHOLDER_PREFIX)
+        )
 
     @property
     def admin_token_usable(self) -> bool:
-        return token_usable(self.admin_token)
+        return self.token_usable(self.admin_token)
 
     @property
     def ignored_admin_tokens(self) -> int:
@@ -73,7 +78,7 @@ class Settings(BaseSettings):
         except ValueError:
             return count
         if isinstance(data, dict):
-            count += sum(1 for v in data.values() if isinstance(v, str) and v and not token_usable(v))
+            count += sum(1 for v in data.values() if isinstance(v, str) and v and not self.token_usable(v))
         return count
 
     @property
