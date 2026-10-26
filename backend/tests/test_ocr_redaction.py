@@ -50,16 +50,18 @@ def _render(rows, size=(1400, 700), font_size=56, start_y=40, step=90):
     return img, bboxes
 
 
-def _ink(img: Image.Image, bbox) -> np.ndarray:
-    x0, y0, x1, y1 = bbox
-    return np.asarray(img.convert("L"))[y0:y1, x0:x1] < 128
+def _ink_covered_ratio(img: Image.Image, boxes, bbox) -> float:
+    """Satırdaki mürekkep piksellerinin (orijinalde koyu) sansür kutularının içinde kalma oranı.
 
-
-def _black_ratio_of_ink(orig: Image.Image, out: Image.Image, bbox) -> float:
+    Metin zaten siyah çizildiği için çıktı rengine bakmak sansürü ayırt etmez; kapsama bakılır.
+    Kelimeler arası boşluk metin değildir, ölçüme girmez.
+    """
+    covered = np.zeros((img.height, img.width), dtype=bool)
+    for x0, y0, x1, y1 in boxes:
+        covered[y0:y1, x0:x1] = True
     x0, y0, x1, y1 = bbox
-    ink = _ink(orig, bbox)
-    region = np.asarray(out)[y0:y1, x0:x1]
-    return float((region[ink] == 0).all(axis=-1).mean())
+    ink = np.asarray(img.convert("L"))[y0:y1, x0:x1] < 128
+    return float(covered[y0:y1, x0:x1][ink].mean())
 
 
 @pytest.mark.skipif(shutil.which("tesseract") is not None, reason="tesseract kurulu; bu test yalnızca kurulu değilken anlamlı")
@@ -80,9 +82,10 @@ def test_phone_redacted_and_brand_tagged():
 
     assert result.document_like is False
     assert len(result.boxes) >= 1
-    assert _black_ratio_of_ink(img, out, phone_bbox) == 1.0
+    assert _ink_covered_ratio(img, result.boxes, phone_bbox) == 1.0
+    assert (np.asarray(out)[phone_bbox[1]:phone_bbox[3], phone_bbox[0]:phone_bbox[2] - 8] == 0).all()
     # Marka satırı kapatılmadı.
-    assert _black_ratio_of_ink(img, out, brand_bbox) < 0.5
+    assert _ink_covered_ratio(img, result.boxes, brand_bbox) == 0.0
     assert "casio" in extract_tags(words, result.boxes, load_brands())
 
 
@@ -99,10 +102,12 @@ def test_id_like_card_is_fully_redacted():
     for w in words:
         x0, y0, x1, y1 = w.box
         assert (np.asarray(out)[y0:y1, x0:x1] == 0).all()
-    assert _black_ratio_of_ink(img, out, bboxes[-1]) == 1.0
-    total_ink = sum(int(_ink(img, b).sum()) for b in bboxes)
-    black_ink = sum(_black_ratio_of_ink(img, out, b) * int(_ink(img, b).sum()) for b in bboxes)
-    assert black_ink / total_ink >= 0.98
+    # Kimlik numarası satırı tamamen kapalı olmalı.
+    assert _ink_covered_ratio(img, result.boxes, bboxes[-1]) == 1.0
+    # Diğer satırlar: tesseract kutuları glif kenarından 1-2 px dar olabiliyor (4 px genişletmeye rağmen
+    # "KARTI" satırında kenar yumuşatma piksellerinin ~%1'i dışarıda kalıyor; okunabilir değil). Bkz. ILERLEME.
+    for bbox in bboxes[:-1]:
+        assert _ink_covered_ratio(img, result.boxes, bbox) >= 0.98
 
 
 @needs_tesseract
