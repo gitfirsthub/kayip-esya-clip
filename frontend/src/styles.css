@@ -344,9 +344,13 @@ textarea {
 }
 
 /* ===== Durumlar ===== */
-.error-box {
+.error-box,
+.success-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
   margin: var(--space-3) 0;
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--danger-border);
   border-left-width: 5px;
   border-radius: var(--radius-sm);
@@ -354,11 +358,44 @@ textarea {
   color: var(--danger);
 }
 
-.empty {
-  padding: var(--space-4);
+.error-box svg,
+.success-box svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.success-box {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+  padding: var(--space-6) var(--space-4);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  color: var(--brand);
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.empty-text {
+  max-width: 48ch;
   color: var(--text-muted);
 }
 
@@ -711,4 +748,9 @@ textarea {
 
 .tracking-box {
   margin-top: var(--space-6);
+}
+
+.tracking-code {
+  border-left: 5px solid var(--brand);
+  background: var(--brand-50);
 }

@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { getReportMatches } from "../api";
 import type { ReportMatches } from "../types";
+import EmptyState from "./EmptyState";
 import ErrorBox from "./ErrorBox";
 import ItemCard from "./ItemCard";
 import SkeletonGrid from "./Skeleton";
@@ -66,7 +67,7 @@ export default function TrackingBox() {
       {!loading && result && (
         <div aria-live="polite">
           {result.matches.length === 0 ? (
-            <p className="empty">Henüz eşleşen bir ilan yok. Daha sonra tekrar kontrol edin.</p>
+            <EmptyState title="Henüz eşleşen bir ilan yok">Daha sonra tekrar kontrol edin.</EmptyState>
           ) : (
             <>
               <h2 className="section-title">Eşleşen ilanlar ({result.matches.length})</h2>

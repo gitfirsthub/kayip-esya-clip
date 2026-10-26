@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { createLostReport, searchItems } from "../api";
 import type { Meta, SearchResponse } from "../types";
+import EmptyState from "./EmptyState";
 import ErrorBox from "./ErrorBox";
 import ImagePicker from "./ImagePicker";
 import ItemCard from "./ItemCard";
@@ -169,11 +170,13 @@ export default function SearchTab({ meta }: { meta: Meta }) {
       {!loading && response && (
         <div aria-live="polite">
           {strong.length === 0 && (
-            <p className="empty">
+            <EmptyState
+              title={weak.length === 0 ? "Eşleşen ilan bulunamadı" : "Güçlü bir eşleşme bulunamadı"}
+            >
               {weak.length === 0
-                ? "Eşleşen ilan bulunamadı. Açıklamayı değiştirmeyi, filtreleri kaldırmayı veya bir fotoğraf eklemeyi deneyin."
-                : "Güçlü bir eşleşme bulunamadı. Aşağıdaki daha az benzer sonuçlara göz atabilirsiniz."}
-            </p>
+                ? "Açıklamayı değiştirmeyi, filtreleri kaldırmayı veya bir fotoğraf eklemeyi deneyin."
+                : "Aşağıdaki daha az benzer sonuçlara göz atabilirsiniz."}
+            </EmptyState>
           )}
           {strong.length > 0 && (
             <>

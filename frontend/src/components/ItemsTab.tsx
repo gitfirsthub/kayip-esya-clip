@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { listItems } from "../api";
 import type { ItemList, ItemStatus } from "../types";
+import EmptyState from "./EmptyState";
 import ErrorBox from "./ErrorBox";
 import ItemCard from "./ItemCard";
 import SkeletonGrid from "./Skeleton";
@@ -80,7 +81,9 @@ export default function ItemsTab() {
       {!loading && data && (
         <div aria-live="polite">
           {data.items.length === 0 ? (
-            <p className="empty">Henüz ilan bulunmuyor.</p>
+            <EmptyState title="Henüz ilan bulunmuyor">
+              Bir eşya bulduysanız &quot;Eşya Buldum&quot; sekmesinden ilan ekleyebilirsiniz.
+            </EmptyState>
           ) : (
             <>
               <p>Toplam {total} ilan</p>

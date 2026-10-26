@@ -175,7 +175,13 @@ export default function FoundTab({ meta }: { meta: Meta }) {
 
       {created && !loading && (
         <div aria-live="polite">
-          <h2 className="section-title">İlan kaydedildi</h2>
+          <div className="success-box" role="status">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <strong>İlan kaydedildi</strong>
+          </div>
           <p>
             Otomatik etiketler: kategori <strong>{created.category}</strong>, renk{" "}
             <strong>{created.color}</strong>.{" "}
