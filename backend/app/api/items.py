@@ -55,6 +55,11 @@ def to_item(record: dict) -> Item:
     return Item(**data)
 
 
+def item_text(title: str, description: str, tags: list[str]) -> str:
+    """İlanın metin indeksine giren metin: başlık + açıklama + güvenli etiketler."""
+    return " ".join(part for part in (title, description, " ".join(tags)) if part)
+
+
 def redact_and_shrink(img: Image.Image, words, faces: int, brands, max_side: int):
     """Kişisel veri kutularını siyahla kapatır, güvenli etiketleri çıkarır ve görseli max_side'a küçültür."""
     redaction = find_redactions(words, faces, img.size)
@@ -157,12 +162,15 @@ async def create_item(
     try:
         await run_in_threadpool(img.save, path, "JPEG", quality=85)
         embedding = (await run_in_threadpool(encoder.encode_images, [img]))[0]
+        text = item_text(fields["title"], fields["description"], tags)
+        text_embedding = (await run_in_threadpool(encoder.encode_texts, [text]))[0]
         category, category_score, color = tagger.tag(embedding)
         record = store.add(
             {**fields, "image_path": filename, "category": category, "category_score": category_score,
              "color": color, "faces_blurred": faces, "tags": tags,
              "redacted_regions": len(redaction.boxes), "document_like": redaction.document_like},
             embedding,
+            text_embedding,
         )
     except Exception:
         if os.path.exists(path):

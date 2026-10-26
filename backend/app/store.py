@@ -73,6 +73,7 @@ MIGRATIONS = (
     ("tags", "TEXT NOT NULL DEFAULT '[]'"),
     ("redacted_regions", "INTEGER NOT NULL DEFAULT 0"),
     ("document_like", "INTEGER NOT NULL DEFAULT 0"),
+    ("text_embedding", "BLOB"),
 )
 
 _COLUMNS = ", ".join(FIELDS)
@@ -122,16 +123,23 @@ class Store:
 
     def _load_matrix(self) -> None:
         rows = self._conn.execute(
-            "SELECT id, location, category, status, embedding FROM items ORDER BY rowid"
+            "SELECT id, location, category, status, tags, embedding, text_embedding FROM items ORDER BY rowid"
         ).fetchall()
         self._ids: list[str] = [r["id"] for r in rows]
         self._locations = np.array([r["location"] for r in rows], dtype=object)
         self._categories = np.array([r["category"] for r in rows], dtype=object)
         self._statuses = np.array([r["status"] for r in rows], dtype=object)
+        self._tags: list[frozenset[str]] = [frozenset(json.loads(r["tags"])) for r in rows]
         if rows:
             self._matrix = np.stack([np.frombuffer(r["embedding"], dtype=np.float32) for r in rows])
+            # Metin embedding'i olmayan (Faz 7A öncesi) ilanlarda görsel embedding yedek olarak kullanılır;
+            # böylece metin indeksi o ilanın skorunu değiştirmez. Açılışta backfill ile doldurulur.
+            self._text_matrix = np.stack([
+                np.frombuffer(r["text_embedding"] or r["embedding"], dtype=np.float32) for r in rows
+            ])
         else:
             self._matrix = np.empty((0, self.dim), dtype=np.float32)
+            self._text_matrix = np.empty((0, self.dim), dtype=np.float32)
 
     def _check_vec(self, vec: np.ndarray) -> np.ndarray:
         vec = np.asarray(vec, dtype=np.float32).reshape(-1)
@@ -147,8 +155,9 @@ class Store:
         with self._lock:
             return len(self._ids)
 
-    def add(self, fields: dict, embedding: np.ndarray) -> dict:
+    def add(self, fields: dict, embedding: np.ndarray, text_embedding: np.ndarray | None = None) -> dict:
         vec = self._check_vec(embedding)
+        text_vec = self._check_vec(text_embedding) if text_embedding is not None else None
         item = {
             "id": uuid.uuid4().hex,
             "title": fields["title"],
@@ -170,15 +179,38 @@ class Store:
         with self._lock:
             with self._conn:
                 self._conn.execute(
-                    f"INSERT INTO items ({_COLUMNS}, embedding) VALUES ({', '.join('?' * (len(FIELDS) + 1))})",
-                    [_to_db(k, item[k]) for k in FIELDS] + [vec.tobytes()],
+                    f"INSERT INTO items ({_COLUMNS}, embedding, text_embedding) "
+                    f"VALUES ({', '.join('?' * (len(FIELDS) + 2))})",
+                    [_to_db(k, item[k]) for k in FIELDS]
+                    + [vec.tobytes(), text_vec.tobytes() if text_vec is not None else None],
                 )
             self._ids.append(item["id"])
             self._locations = np.append(self._locations, np.array([item["location"]], dtype=object))
             self._categories = np.append(self._categories, np.array([item["category"]], dtype=object))
             self._statuses = np.append(self._statuses, np.array([item["status"]], dtype=object))
+            self._tags.append(frozenset(item["tags"]))
             self._matrix = np.vstack([self._matrix, vec[None, :]])
+            self._text_matrix = np.vstack([self._text_matrix, (text_vec if text_vec is not None else vec)[None, :]])
         return item
+
+    def items_missing_text_embedding(self) -> list[dict]:
+        """Metin embedding'i olmayan ilanların metin indeksine girecek alanları."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, title, description, tags FROM items WHERE text_embedding IS NULL ORDER BY rowid"
+            ).fetchall()
+        return [{"id": r["id"], "title": r["title"], "description": r["description"],
+                 "tags": json.loads(r["tags"])} for r in rows]
+
+    def set_text_embeddings(self, vectors: dict[str, np.ndarray]) -> None:
+        checked = {item_id: self._check_vec(v) for item_id, v in vectors.items()}
+        with self._lock:
+            with self._conn:
+                for item_id, vec in checked.items():
+                    self._conn.execute("UPDATE items SET text_embedding = ? WHERE id = ?", (vec.tobytes(), item_id))
+            for item_id, vec in checked.items():
+                if item_id in self._ids:
+                    self._text_matrix[self._ids.index(item_id)] = vec
 
     def get(self, item_id: str) -> dict | None:
         with self._lock:
@@ -229,7 +261,9 @@ class Store:
             self._locations = np.delete(self._locations, idx)
             self._categories = np.delete(self._categories, idx)
             self._statuses = np.delete(self._statuses, idx)
+            del self._tags[idx]
             self._matrix = np.delete(self._matrix, idx, axis=0)
+            self._text_matrix = np.delete(self._text_matrix, idx, axis=0)
             return True
 
     def search(
@@ -240,9 +274,21 @@ class Store:
         category: str | None = None,
         include_returned: bool = False,
         top_k: int = 12,
+        text_vec: np.ndarray | None = None,
+        text_weight: float = 0.0,
+        text_share: float = 1.0,
+        query_terms: set[str] | frozenset[str] = frozenset(),
+        tag_bonus: float = 0.0,
+        tag_bonus_max: float = 0.0,
     ) -> list[tuple[dict, float]]:
-        """Kosinüs benzerliğine (normalize vektörlerde nokta çarpım) göre en iyi top_k ilanı döndürür."""
+        """Kosinüs benzerliğine (normalize vektörlerde nokta çarpım) göre en iyi top_k ilanı döndürür.
+
+        Temel skor `görsel_matris @ vec`. Metin sorgusu varsa (text_vec) metin kısmı
+        s_text = (1-w)*cos(q, ilan_görsel) + w*cos(q, ilan_metin) + etiket bonusu olur ve
+        toplam skora text_share oranında girer (yalnızca metin: 1.0, metin+görsel: 0.5).
+        """
         vec = self._check_vec(vec)
+        text_vec = self._check_vec(text_vec) if text_vec is not None else None
         with self._lock:
             if not self._ids or top_k <= 0:
                 return []
@@ -257,6 +303,15 @@ class Store:
             if candidates.size == 0:
                 return []
             scores = self._matrix[candidates] @ vec
+            if text_vec is not None and text_weight:
+                text_part = self._text_matrix[candidates] @ text_vec - self._matrix[candidates] @ text_vec
+                scores = scores + text_share * text_weight * text_part
+            if query_terms and tag_bonus:
+                bonus = np.array(
+                    [min(tag_bonus * len(self._tags[i] & query_terms), tag_bonus_max) for i in candidates],
+                    dtype=np.float32,
+                )
+                scores = scores + text_share * bonus
             k = min(top_k, candidates.size)
             if k < candidates.size:
                 top = np.argpartition(-scores, k - 1)[:k]

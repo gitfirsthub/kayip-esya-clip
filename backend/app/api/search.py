@@ -10,6 +10,7 @@ from app.config import Settings, get_settings
 from app.deps import get_campus, get_encoder, get_store, require_ready
 from app.errors import ApiError
 from app.ml.image_io import InvalidImageError, load_and_sanitize
+from app.ml.tags import query_terms
 from app.schemas import SearchResponse, SearchResult
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_ready)])
@@ -87,8 +88,11 @@ async def search(
         img_vec = (await run_in_threadpool(encoder.encode_images, [img]))[0]
     text_vec = (await run_in_threadpool(encoder.encode_texts, [query]))[0] if query else None
 
+    terms = frozenset(query_terms(query)) if query else frozenset()
+
+    # s = 0.5*s_text + 0.5*cos(q_img, item); s_text'in metin indeksi ve etiket kısmı store.search'te eklenir.
     if text_vec is not None and img_vec is not None:
-        vec = 0.5 * text_vec + 0.5 * img_vec  # s = 0.5*cos(q_text,item) + 0.5*cos(q_img,item)
+        vec = 0.5 * text_vec + 0.5 * img_vec
     else:
         vec = text_vec if text_vec is not None else img_vec
     found = await run_in_threadpool(
@@ -98,6 +102,12 @@ async def search(
             category=category,
             include_returned=returned,
             top_k=k,
+            text_vec=text_vec,
+            text_weight=settings.search_text_weight,
+            text_share=0.5 if img_vec is not None else 1.0,
+            query_terms=terms,
+            tag_bonus=settings.tag_bonus,
+            tag_bonus_max=settings.tag_bonus_max,
         )
     )
     results = [

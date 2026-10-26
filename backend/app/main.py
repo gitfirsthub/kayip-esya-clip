@@ -62,6 +62,18 @@ def load_components(app: FastAPI, settings: Settings) -> None:
         logger.warning("OCR kapalı (OCR_ENABLED=false); görseldeki metin tabanlı kişisel veriler sansürlenmez.")
     app.state.brands = load_brands()
     app.state.store = Store(settings.data_dir, dim=encoder.dim)
+    backfill_text_index(app.state.store, encoder)
+
+
+def backfill_text_index(store, encoder, batch: int = 64) -> None:
+    """Faz 7A öncesi ilanların metin embedding'ini (başlık + açıklama + etiketler) üretir."""
+    missing = store.items_missing_text_embedding()
+    for start in range(0, len(missing), batch):
+        chunk = missing[start : start + batch]
+        vectors = encoder.encode_texts([items_api.item_text(r["title"], r["description"], r["tags"]) for r in chunk])
+        store.set_text_embeddings({r["id"]: v for r, v in zip(chunk, vectors)})
+    if missing:
+        logger.info("%d ilanın metin indeksi dolduruldu.", len(missing))
 
 
 def _load(app: FastAPI, settings: Settings) -> None:
