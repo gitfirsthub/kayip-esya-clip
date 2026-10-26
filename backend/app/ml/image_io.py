@@ -3,6 +3,11 @@ import io
 
 from PIL import Image, ImageOps
 
+# Açılmadan önce uygulanan piksel sınırı (≈50 MP; telefon fotoğrafları 12–50 MP). Pillow'un kendi
+# sınırı (~89 MP) yalnızca uyarı verir; küçük bir sıkıştırılmış dosya GB'larca bellek açabilir.
+MAX_PIXELS = 50_000_000
+MSG_TOO_MANY_PIXELS = "Görsel çok büyük; daha küçük bir fotoğraf yükleyin."
+
 
 class InvalidImageError(Exception):
     """Görsel açılamadığında veya bozuk olduğunda fırlatılır."""
@@ -29,26 +34,30 @@ def _to_rgb(img: Image.Image) -> Image.Image:
 def load_and_sanitize(data: bytes, max_side: int) -> Image.Image:
     """Baytlardan EXIF/metaveri taşımayan, en uzun kenarı en fazla max_side olan RGB görüntü üretir.
 
-    Pillow'un decompression-bomb koruması (Image.MAX_IMAGE_PIXELS) olduğu gibi kalır.
+    Piksel sayısı açılmadan önce MAX_PIXELS ile sınırlanır; JPEG'ler mümkünse küçültülerek çözülür
+    (draft) ve görüntü metaveriden arındırılmadan önce küçültülür, böylece tepe bellek sınırlı kalır.
     """
     if not data:
         raise InvalidImageError()
     try:
         with Image.open(io.BytesIO(data)) as probe:
+            w, h = probe.size
+            if w * h > MAX_PIXELS:
+                raise InvalidImageError(MSG_TOO_MANY_PIXELS)
             probe.verify()
         with Image.open(io.BytesIO(data)) as img:
+            img.draft("RGB", (max_side, max_side))  # yalnızca JPEG'de etkili; boyut max_side'ın altına inmez
             img.load()  # kesik dosyalar burada hata verir
             img = ImageOps.exif_transpose(img)
             rgb = _to_rgb(img)
+            if max(rgb.size) > max_side:
+                rgb.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
             # Yalnızca piksellerden yeni görüntü: EXIF, ICC, XMP vb. hiçbir info taşınmaz.
             clean = Image.frombytes("RGB", rgb.size, rgb.tobytes())
     except InvalidImageError:
         raise
     except Image.DecompressionBombError as exc:
-        raise InvalidImageError("Görsel çok büyük; daha küçük bir fotoğraf yükleyin.") from exc
+        raise InvalidImageError(MSG_TOO_MANY_PIXELS) from exc
     except Exception as exc:  # Pillow çok çeşitli hata tipleri fırlatır (OSError, SyntaxError, ValueError...)
         raise InvalidImageError() from exc
-
-    if max(clean.size) > max_side:
-        clean.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     return clean

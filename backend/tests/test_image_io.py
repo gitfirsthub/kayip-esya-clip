@@ -68,3 +68,20 @@ def test_truncated_jpeg_raises():
     data = jpeg_with_exif()
     with pytest.raises(InvalidImageError):
         load_and_sanitize(data[: len(data) // 2], max_side=1024)
+
+
+def test_pixel_bomb_rejected_before_decoding():
+    # ~21 KB'lık 1-bit PNG, açılınca 177 MP (GB'larca bellek) olurdu.
+    buf = io.BytesIO()
+    Image.new("1", (13300, 13300), 0).save(buf, "PNG", optimize=True)
+    with pytest.warns(Image.DecompressionBombWarning), pytest.raises(InvalidImageError) as exc:
+        load_and_sanitize(buf.getvalue(), max_side=1024)
+    assert exc.value.message == "Görsel çok büyük; daha küçük bir fotoğraf yükleyin."
+
+
+@pytest.mark.parametrize("mode", ["RGB", "L", "CMYK"])
+def test_large_jpeg_modes_become_rgb_and_shrink(mode):
+    buf = io.BytesIO()
+    Image.new(mode, (4000, 3000)).save(buf, "JPEG")
+    img = load_and_sanitize(buf.getvalue(), max_side=1600)
+    assert img.mode == "RGB" and img.size == (1600, 1200)
