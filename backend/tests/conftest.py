@@ -14,6 +14,16 @@ from app.store import Store
 ADMIN_TOKEN = "test-admin-token"
 
 
+@pytest.fixture(autouse=True)
+def no_local_env_file(monkeypatch):
+    """Testler geliştiricinin yerel .env dosyasından etkilenmesin; yalnızca kod varsayılanları ve
+    testin verdiği değerler geçerli olsun."""
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 class FakeBlurrer:
     """FaceBlurrer arayüzü; görseli değiştirmeden sabit sayıda yüz bulmuş gibi döner."""
 
