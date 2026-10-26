@@ -131,6 +131,7 @@ export default function SearchTab({ meta }: { meta: Meta }) {
         >
           {reporting ? "Kaydediliyor…" : "Bulunursa haber almak için bildirim bırak"}
         </button>
+        <p className="desc">Lütfen telefon numarası, TC kimlik no veya kişisel veri girmeyiniz.</p>
       </form>
 
       {trackingCode && (
