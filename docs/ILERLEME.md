@@ -11,7 +11,7 @@
 | 6 Eval | ✅ | 2026-10-26 | 21 ilan + 42 TR/42 EN metin + 7 görsel sorgu; seed_demo.py, eval_retrieval.py, EVAL.md; TR metin R@5 0.857 / R@1 0.524; eşikler 0.315/0.255; 83 test geçti; spec-guard kritik ihlal yok |
 | 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
 | 7A PII sansürü ve yerel OCR | ✅ (elle doğrulama kullanıcıda) | 2026-10-26 | Tesseract (tur+eng) ile OCR, TC/telefon/e-posta/IBAN/kart/6+ rakam siyah bantla kapatılır, kimlik benzeri belgede tüm metin; fail-closed 503; izin listeli marka/model etiketleri; ilan metin indeksi + etiket bonusu (SEARCH_TEXT_WEIGHT=0.0, EVAL'e göre); 210 test geçti (venv, 3 tesseract testi atlandı) / 212 geçti (imaj içinde gerçek tesseract); temiz klon ve `--network none` geçti; spec-guard kritik ihlal yok |
-| 7B Frontend görsel cilası | ⬜ | | Spesifikasyon bekleniyor |
+| 7B Frontend görsel cilası + Yönetici paneli | 🟡 (görsel kontrol ve geri bildirim turu kullanıcıda) | 2026-10-26 | Tasarım belirteçleri, başlık/segmented sekmeler, kart ızgarası + iskelet, sürükle-bırak yükleme, boş/hata durumları, etiket ve "N bölge gizlendi" çipleri, mobil/AA (23 kontrast çifti ölçüldü, hepsi geçti); Yönetici sekmesi + teslim noktası başına token (ADMIN_POINT_TOKENS, GET /api/admin/me ve /api/admin/items); 9 yeni backend testi (219 geçti); build ve tsc hatasız; metin ağırlığı kullanıcı seçimiyle 0.1 |
 | 8 Denetim | ⬜ | | |
 | 9 Dokümantasyon | ⬜ | | |
 
@@ -71,3 +71,9 @@
   - Şablon karşılaştırması (13 renkte dokulu sentetik nesne, renk doğruluğu): tr 9/13, en 10/13, avg 11/13 → avg seçildi.
   - Faz 3 (docker, gerçek modeller, sentetik mavi şemsiye görseli, M4 Pro): `POST /api/items` 201, 0.149 sn, kategori=şemsiye (0.9996), renk=mavi, faces_blurred=0. `POST /api/search -F "query=mavi şemsiye"` 200, skor 0.3183 → "yüksek", took_ms 26.2. Aynı görselle arama: skor 1.0, took_ms 73.2. "siyah sırt çantası" sorgusu aynı ilana 0.2124 → "düşük". Boş arama 422 sözleşme metni; token'sız DELETE 403.
 - Faz 6 (M4 Pro, docker, gerçek modeller, 21 ilan): metin arama took_ms medyan ~29 ms, görsel ~73 ms, en yüksek 79 ms. TR metin R@1/R@5/MRR 0.524/0.857/0.657; EN 0.595/0.857/0.717; görsel (n=7) 0.857/1.000/0.886. demo_data/images 4.6 MB (28 JPEG, ≤1024 px, EXIF yok).
+
+## Faz 7B notları (2026-10-26)
+- Kullanıcı kararı: yönetici paneli 7B kapsamına alındı, teslim noktası başına token seçildi (kimlik sistemi değil; token yalnızca tarayıcı belleğinde).
+- Kullanıcı SEARCH_TEXT_WEIGHT=0.1'i elle deneyip seçti; config/compose/PLAN varsayılanı 0.1 yapıldı (EVAL ölçümü 0.0 ve 0.2 içindi, 0.1 ölçülmedi).
+- Açık bulgu (7A): yerel tesseract 5.5.3 + macOS Arial ile `test_id_like_card_is_fully_redacted` düşüyor: "ADI" sözcüğü OCR'da hiç okunmadı, kapsama ~%60. Docker imajındaki DejaVu ile geçmişti. OCR'ın okuyamadığı yazı sansürlenemez; karar kullanıcıda.
+- Fikir Havuzu: `api.ts` `request()` 204 yanıtı için JSON bekliyor; `adminDelete` geçici çözümle 204'ü başarı sayıyor, `request()`'e 204 desteği eklenmeli. Kullanılmayan `.empty` CSS sınıfı. Gerçek ekran görüntüsü/notlar gelmediği için analiz kod üzerinden yapıldı.
