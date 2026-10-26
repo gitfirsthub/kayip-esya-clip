@@ -33,7 +33,7 @@
 | 2:25–2:32 | "Yönetici" sekmesi. "Yönetici girişi", "Yönetici anahtarı" (maskeli alan), "Giriş". | "Her teslim noktasının kendi yönetici anahtarı var. Anahtar yalnızca tarayıcının belleğinde tutuluyor; hesap, kullanıcı kaydı ya da oturum yok." |
 | 2:32–2:40 | Başlık "Güvenlik Birimi (Ana Kapı) yönetimi"; anahtarlık kartı; "Teslim edildi olarak işaretle". | "Sahibi eşyasını aldığında ilanı 'Teslim edildi olarak işaretle' ile kapatıyorum." |
 | 2:40–2:45 | Kart "Teslim edildi" rozetiyle. Ardından "Tüm İlanlar" sekmesi. | "Teslim edilen ilan kayıp aramalarında çıkmıyor; Tüm İlanlar'da 'Teslim edildi' olarak kalıyor." |
-| 2:45–2:52 | Terminal, proje kökünde: `grep -rniE "ultralytics\|yolo\|openai\|anthropic\|generativeai" --exclude-dir={node_modules,.git,docs,.claude} --exclude=*.md .` Çıktı boş olmalı. | "Projede YOLO ya da bulut yapay zekâ servisi yok. Sınıflandırma CLIP ile, yüz tespiti OpenCV YuNet ile, OCR Tesseract ile; hepsi konteynerin içinde, CPU üzerinde çalışıyor." |
+| 2:45–2:52 | Terminal, proje kökünde: `grep -rniE "ultralytics\|yolo\|openai\|anthropic\|generativeai" --exclude-dir={node_modules,.git,docs,.claude,.venv} --exclude=*.md .` Çıktı boş olmalı. | "Projede YOLO ya da bulut yapay zekâ servisi yok. Sınıflandırma CLIP ile, yüz tespiti OpenCV YuNet ile, OCR Tesseract ile; hepsi konteynerin içinde, CPU üzerinde çalışıyor." |
 | 2:52–3:00 | Tarayıcı, http://localhost:3000 ya da kapanış ekranı. | "Yapay zekâ modelleri imajın içinde; çalışırken dış bir servis çağrılmıyor. Eşya teslim noktasına bırakılıyor ve iletişim bilgisi toplanmıyor. Dinlediğiniz için teşekkürler." |
 
 Notlar:

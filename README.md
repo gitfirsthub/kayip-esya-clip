@@ -173,7 +173,7 @@ Hata yanıtları Türkçe `{"detail": "..."}` biçimindedir. Yönetici uçları 
 
 Kaynak: [docs/EVAL.md](docs/EVAL.md) (Faz 8 bölümündeki "Sonuç tablosu" ve Faz 6 "Ana sonuç" tablosu).
 
-Mevcut yapılandırma (`SEARCH_TEXT_WEIGHT=0.1`, 24 ilan, 42 Türkçe ve 42 İngilizce metin sorgusu, 7 görsel sorgu):
+Mevcut yapılandırma (`SEARCH_TEXT_WEIGHT=0.1`, 24 ilan: 21 demo ilanı + ölçüm sırasında veritabanında kalmış 3 eski test ilanı; fazlalar yanlış aday sayılır, 42 Türkçe ve 42 İngilizce metin sorgusu, 7 görsel sorgu):
 
 | Sorgu türü | n | R@1 | R@5 | MRR |
 |---|---|---|---|---|

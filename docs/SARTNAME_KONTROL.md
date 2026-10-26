@@ -6,7 +6,7 @@
 - [x] Backend'de durumunu bildiren `/health` ucu var
 - [x] Frontend backend'e yalnızca API üzerinden bağlanıyor
 - [x] Yalnızca CPU ile çalışıyor
-- [ ] Frontend ve API adresleri README'de yazıyor (http://localhost:3000, http://localhost:8000)
+- [x] Frontend ve API adresleri README'de yazıyor (http://localhost:3000, http://localhost:8000)
 - [x] Model ağırlıkları build sırasında otomatik iniyor; elle dosya kopyalama yok
 - [x] Port, adres ve model yolu ortam değişkenlerinden okunuyor
 - [x] Hatalı veya eksik girdi uygulamayı çökertmiyor; anlaşılır Türkçe hata mesajı gösteriliyor
