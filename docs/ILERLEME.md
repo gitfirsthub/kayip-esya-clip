@@ -10,6 +10,8 @@
 | 5 Compose | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | docker-compose.yml (PLAN tanımı), .env.example notları; `.env`siz temiz klonda tek komutla ayağa kalktı; meta/yükleme/arama curl ile geçti; amd64 backend build'i başarılı; spec-guard kritik kod ihlali yok |
 | 6 Eval | ✅ | 2026-10-26 | 21 ilan + 42 TR/42 EN metin + 7 görsel sorgu; seed_demo.py, eval_retrieval.py, EVAL.md; TR metin R@5 0.857 / R@1 0.524; eşikler 0.315/0.255; 83 test geçti; spec-guard kritik ihlal yok |
 | 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
+| 7A PII sansürü ve yerel OCR | ⬜ | | |
+| 7B Frontend görsel cilası | ⬜ | | Spesifikasyon bekleniyor |
 | 8 Denetim | ⬜ | | |
 | 9 Dokümantasyon | ⬜ | | |
 

@@ -26,6 +26,9 @@
 - [ ] Gizli bilgi depoda yok; .env git'te yok; .env.example var
 - [ ] Yüzler bulanıklaştırılıyor, orijinal saklanmıyor, EXIF siliniyor
 - [ ] Demo görselleri kendi çekimimiz, yüz içermiyor
+- [ ] OCR tamamen yerel, harici servis yok; sistem bağımlılıkları Dockerfile'da
+- [ ] Metin tabanlı kişisel veriler (TC, telefon, e-posta, IBAN, öğrenci no) görselden kalıcı olarak silinir
+- [ ] OCR ham metni loglanmaz, saklanmaz, API'den dönmez
 ## 7. Git
 - [ ] Küçük, sık, anlamlı commit'ler; mesajlar açıklayıcı
 - [ ] En az 5 farklı güne yayılma (organizatörle teyit edilecek)

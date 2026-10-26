@@ -21,20 +21,30 @@ TORCH_NUM_THREADS=4
 MATCH_HIGH=0.315                             # Faz 6 eval ile ayarlandı (docs/EVAL.md)
 MATCH_MEDIUM=0.255
 ADMIN_TOKEN=change-me                        # boşsa yönetici uçları kapalı (403)
+OCR_ENABLED=true                             # Faz 7A; false yalnızca geliştirme amaçlı
+OCR_LANGS=tur+eng
+OCR_MAX_SIDE=1600
+OCR_TIMEOUT_S=8
+OCR_MIN_CONF=30
+OMP_THREAD_LIMIT=1                           # tesseract ile torch iş parçacığı çakışmasın
+SEARCH_TEXT_WEIGHT=0.0                       # Faz 7A eval ile ayarlanacak (docs/EVAL.md)
+TAG_BONUS=0.05
+TAG_BONUS_MAX=0.10
 LOG_LEVEL=INFO
 
 ## API sözleşmesi
-- GET /health → 200 {"status":"ok","models_loaded":true,"face_blur":true,"item_count":N,"version":"x.y.z"}; modeller yüklenirken 503 {"status":"loading"}.
+- GET /health → 200 {"status":"ok","models_loaded":true,"face_blur":true,"ocr":true,"item_count":N,"version":"x.y.z"}; modeller yüklenirken 503 {"status":"loading"}.
 - GET /api/meta → {"locations":[...], "dropoff_points":[...], "categories":[...], "colors":[...], "max_upload_mb":8}
 - POST /api/items (multipart; bulunan eşya kaydı):
   image (zorunlu; jpeg/png/webp; ≤ MAX_UPLOAD_MB), title (3–80 karakter), description (0–500), location (meta.locations'tan), found_date (YYYY-MM-DD, gelecek olamaz, en fazla 60 gün geçmiş), dropoff_point (meta.dropoff_points'ten).
-  İşlem sırası: tür ve boyut doğrulama → Pillow açma ve verify → EXIF transpose → EXIF silme → en uzun kenarı MAX_IMAGE_SIDE'a küçültme → YuNet yüz bulanıklaştırma → JPEG (q=85) kaydetme → görsel embedding'i → zero-shot kategori ve renk etiketi → SQLite. Yanıt: 201 + Item.
-  Item: {id, title, description, location, found_date, dropoff_point, image_url, category, category_score, color, faces_blurred, status:"bekliyor"|"teslim_edildi", created_at}
+  İşlem sırası (Faz 7A ile güncellendi): tür ve boyut doğrulama → Pillow açma ve verify → EXIF transpose → EXIF silme → en uzun kenarı OCR_MAX_SIDE'a küçültülmüş çalışma kopyası → yerel OCR (orijinal pikseller, sansürden önce) → PII tespiti → YuNet yüz bulanıklaştırma + PII kutularını siyah dolu dikdörtgenle kapatma → MAX_IMAGE_SIDE'a küçültme → JPEG (q=85) kaydetme → görsel embedding'i (sansürlü görselden) → zero-shot kategori ve renk etiketi → güvenli marka/model etiketleri → metin embedding'i (başlık + açıklama + etiketler) → SQLite. Yanıt: 201 + Item.
+  OCR hata verir, zaman aşımına uğrar veya tesseract yoksa: 503 {"detail":"Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."}, dosya kaydedilmez.
+  Item: {id, title, description, location, found_date, dropoff_point, image_url, category, category_score, color, faces_blurred, tags:[str], redacted_regions:int, document_like:bool, status:"bekliyor"|"teslim_edildi", created_at}
 - GET /api/items?status=&location=&category=&limit=20&offset=0 → {items:[...], total}; yeniden eskiye.
 - GET /api/items/{id} → Item | 404 {"detail":"İlan bulunamadı."}
 - POST /api/search (multipart): query (0–200), image (opsiyonel), location (opsiyonel filtre), category (opsiyonel filtre), include_returned (bool, varsayılan false), top_k (1–50, varsayılan 12).
   query ve image'den en az biri zorunlu, yoksa 422 {"detail":"Aramak için bir açıklama yazın veya fotoğraf yükleyin."}.
-  İkisi birden varsa: s = 0.5*cos(q_text, item) + 0.5*cos(q_img, item). Yanıt: {results:[{item, score, match_level:"yüksek"|"orta"|"düşük"}], took_ms}. Arama görseli diske KAYDEDİLMEZ.
+  İkisi birden varsa: s = 0.5*s_text + 0.5*cos(q_img, item). Faz 7A: s_text = (1-w)*cos(q_text, item_img) + w*cos(q_text, item_text) + etiket bonusu (w = SEARCH_TEXT_WEIGHT; sorgudaki marka/model sözcüğü ilanın etiketiyle eşleşirse eşleşme başına TAG_BONUS, en çok TAG_BONUS_MAX). Yanıt: {results:[{item, score, match_level:"yüksek"|"orta"|"düşük"}], took_ms}. Arama görseli diske KAYDEDİLMEZ.
 - PATCH /api/items/{id}/status  header X-Admin-Token, body {"status":"teslim_edildi"|"bekliyor"} → Item | 403
 - DELETE /api/items/{id}  header X-Admin-Token → 204 | 403
 - /uploads/<dosya>.jpg statik (yalnızca bulanıklaştırılmış kopyalar)
@@ -108,6 +118,50 @@ Kabul: EVAL.md'de gerçek sayılar var; eşikler .env.example'da güncel.
 - GET /api/lost-reports/{code}/matches → eşleşen ilanlar. Frontend'de "Takip kodumla kontrol et" kutusu.
 - İletişim bilgisi YOK; bildirim servisi YOK.
 Kabul: testler + uçtan uca senaryo (önce rapor, sonra ilan, sonra kodla eşleşme görünür).
+
+## Faz 7A: Kişisel veri (PII) sansürü ve yerel OCR (Opus, ml-engineer agent'ı)
+Karar: Tesseract (pytesseract), diller tur+eng. EasyOCR KULLANILMAZ (çalışma zamanı model indirmesi, CPU'da yavaş).
+Yeni ortam değişkenleri (.env.example ve config.py): OCR_ENABLED=true, OCR_LANGS=tur+eng, OCR_MAX_SIDE=1600, OCR_TIMEOUT_S=8, OCR_MIN_CONF=30, OMP_THREAD_LIMIT=1 (torch ile iş parçacığı çakışmasın); arama için SEARCH_TEXT_WEIGHT, TAG_BONUS=0.05, TAG_BONUS_MAX=0.10.
+
+Yükleme sırası (backend/app/api/items.py ve ml/):
+doğrulama → Pillow açma + EXIF silme → OCR_MAX_SIDE'a küçültülmüş çalışma kopyası → OCR (ORİJİNAL pikseller üzerinde, sansürden ÖNCE) → PII tespiti → yüz bulanıklaştırma + PII kutularını SİYAH DOLU DİKDÖRTGENLE kapatma (Gaussian blur değil; okunabilir kalabilir) → MAX_IMAGE_SIDE'a küçültme → kaydet → embedding SANSÜRLÜ görselden → güvenli etiketler → SQLite.
+Ham OCR metni asla loglanmaz, diske yazılmaz, API yanıtında dönmez, hata mesajına girmez.
+
+ml/ocr.py: `run_ocr(img) -> list[Word(text, conf, box, line_id)]` (pytesseract.image_to_data, --oem 1 --psm 11, timeout=OCR_TIMEOUT_S). Gri tonlama + gerekirse 2x büyütme ön işleme. Kutular çalışma kopyası koordinatlarında.
+FAIL-CLOSED: OCR hata verir, zaman aşımına uğrar veya tesseract binary'si yoksa yükleme KAYDEDİLMEZ; 503 {"detail":"Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."}. /health'e "ocr": true/false eklenir. Yalnızca OCR_ENABLED=false ise atlanır (geliştirme amaçlı; README'de belirtilir).
+
+ml/pii.py (saf fonksiyonlar, tesseract gerektirmeden test edilebilir):
+- Satır içi kayan pencere: aynı line_id'deki ardışık kelimelerin rakamlarını (boşluk, nokta, tire, eğik çizgi ayırıcılarını yok sayarak) birleştir. Rakam benzeri karakter düzeltmesi yalnızca %60+ rakam içeren belirteçlerde: O/o→0, I/l/|→1, S→5, B→8.
+- Desenler: TCKN (11 rakam, ilk hane 0 değil; sağlama toplamı yalnızca güven artırır, tutmasa da SANSÜRLE: OCR hatası olabilir), telefon (+90/0/5xx ile başlayan 10–11 hane), e-posta (OCR'ın "@" bozmalarına tolerans), IBAN (TR + 24 hane), kart no (13–19 hane, Luhn), ve GENEL KURAL: 6 ve üzeri ardışık rakam (öğrenci numarası vb.), harf yapışık model kodları hariç (örn. "WH-1000XM4" korunur).
+- Öğrenci numarası formatı: GTÜ öğrenci numaraları 12 haneli sayıdır. Genel kuralın bunu kapsadığı testle doğrulanır.
+- Belge algılama (`is_document_like`): metinde ≥2 farklı anahtar sözcük (T.C., KİMLİK, SERİ, SOYADI, ADI, DOĞUM, GEÇERLİLİK, ÖĞRENCİ, FAKÜLTE, IDENTITY, STUDENT, UNIVERSITY...) VEYA (yüz bulundu VE ≥8 kelime okundu). Belge benzeriyse görseldeki OKUNAN TÜM METİN KUTULARI sansürlenir (isim ve soyisim regex ile yakalanamaz) ve etiket çıkarılmaz.
+- Sansür kutuları 4 px genişletilir; birbirine değen kutular birleştirilir.
+
+Güvenli etiketler (ml/tags.py + backend/app/data/brands.txt):
+- Yalnızca İZİN LİSTESİNDEKİ marka/model sözcükleri etiket olur (brands.txt: yaygın ~150 marka; Claude üretir, kullanıcı gözden geçirir) + model kodu deseni (1–4 harf + 2–4 rakam + opsiyonel ek, tamamen rakam olanlar HARİÇ).
+- OCR hatasına tolerans: uzunluğu ≥5 olan sözcüklerde difflib ile en fazla 1 karakter fark (yeni bağımlılık YOK).
+- Sansürlenen kutularla kesişen kelimeler etiket olamaz. En fazla 8 etiket, küçük harf, tekrarsız.
+
+Şema: Item'a `tags: list[str]`, `redacted_regions: int`, `document_like: bool` (API sözleşmesi yukarıda güncellendi). SQLite'a idempotent `ALTER TABLE ADD COLUMN` (tags JSON metin). POST /api/items yanıtında bunlar döner.
+Arama (kullanıcı kararı: yeni metin indeksi + bonus): Mevcut formülde ilanın metni aramada kullanılmıyordu (sorgu metni yalnızca ilan görseliyle karşılaştırılıyordu). İlan için başlık + açıklama + etiketlerden metin embedding'i üretilir ve ayrı matris olarak saklanır (eski ilanlar açılışta doldurulur). s_text = (1-w)*cos(q, ilan_görsel) + w*cos(q, ilan_metin) + bonus; sorgudaki marka/model sözcüğü ilanın etiketleriyle eşleşirse eşleşme başına +0.05, en çok +0.10. w ve eşikler Faz 6 eval'iyle ÖNCE/SONRA ölçülür ve docs/EVAL.md'ye tablo olarak yazılır; Recall@5 düşüyorsa ağırlık değiştirilir veya geri alınır. Kayıp bildirimi eşleşmesi bu fazda değişmez.
+
+Dockerfile (backend): `apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng && rm -rf /var/lib/apt/lists/*`, TORCH katmanından ÖNCE ayrı katman; `ENV OMP_THREAD_LIMIT=1`. İmaj internetsiz çalışmalı (--network none testi tekrar edilir). Yerelde tesseract kullanıcı tarafından `brew install tesseract tesseract-lang` ile kurulur.
+
+Testler:
+- GERÇEK KİMLİK VERİSİ KULLANILMAZ. Pillow ile sentetik görseller (uydurma numaralar: "12345678901", "05321234567", "ornek@example.com", "TR330006100519786457841326") ve TTF yazı tipi (bulunamazsa ilgili test skip).
+- pii.py birim testleri (tesseract gerekmez): boşluklu/noktalı TC, O↔0 karışması, telefon biçimleri, e-posta, IBAN, 6+ rakam, 12 haneli öğrenci no, "WH-1000XM4" korunur, belge algılama.
+- Entegrasyon (tesseract yoksa skip): sentetik "CASIO fx-991 + 05321234567" görseli → çıktıda telefon kutusu siyah, etiketlerde "casio", item.redacted_regions ≥ 1; sentetik kimlik benzeri görsel → document_like=true, etiket yok.
+- Fail-closed testi: OCR monkeypatch ile hataya düşürülür → 503 ve diske dosya yazılmadı.
+- Log testi: caplog içinde rakam dizisi veya e-posta geçmiyor.
+- Mevcut tüm testler önce yeşil, sonra yenileriyle birlikte yeşil kalır.
+
+Performans: OCR'lı toplam yükleme süresi ölçülür (hedef: CPU'da tipik fotoğraf ≤ 6 sn, OCR kısmı ≤ 3 sn) ve ILERLEME "Ölçümler"e yazılır. Aşılırsa önce OCR_MAX_SIDE 1280'e indirilir, olmazsa kullanıcıya seçenek sunulur. Frontend zaman aşımı 60 sn kalır.
+
+Elle doğrulama (kullanıcı yapar): backend/scripts/try_redact.py <girdi> <çıktı>; çıktı klasörü (redact_out/) .gitignore'da.
+Kabul: testler yeşil; docker build OK; --network none ile çalışıyor; sentetik görsellerde PII kapanıyor; EVAL.md önce/sonra tablosu var; temiz klon testi (/temiz-klon-testi) yeşil; spec-guard raporunda kritik ihlal yok.
+
+## Faz 7B: Frontend görsel cilası
+Spesifikasyon kullanıcı tarafından sonraki oturumda verilecek. O zamana kadar bu fazda hiçbir değişiklik yapılmaz.
 
 ## Faz 8: Şartname denetimi ve inceleme (Opus)
 - spec-guard agent'ı docs/SARTNAME_KONTROL.md'deki her maddeyi kanıtla (dosya:satır veya komut çıktısı) doğrular.
