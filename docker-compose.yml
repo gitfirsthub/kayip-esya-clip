@@ -41,9 +41,10 @@ services:
       TRANSFORMERS_OFFLINE: "1"
     volumes:
       - app_data:/data
-    # 1 MB üstü yüklemelerin geçici kopyası kalıcı diske yazılmasın (KVKK).
+    # 1 MB üstü yüklemelerin geçici kopyası kalıcı diske yazılmasın (KVKK). Boyut sınırı RAM'i korur
+    # (gövde sınırı MAX_UPLOAD_MB + 1 MB; eşzamanlı birkaç yükleme ve tesseract geçici dosyaları sığar).
     tmpfs:
-      - /tmp
+      - /tmp:size=128m
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s

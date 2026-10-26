@@ -16,6 +16,7 @@ from app.api import items as items_api
 from app.api import lost_reports as lost_reports_api
 from app.api import meta as meta_api
 from app.api import search as search_api
+from app.api.uploads import BodySizeLimitMiddleware
 from app.errors import register_error_handlers
 from app.schemas import HealthResponse
 
@@ -115,6 +116,8 @@ def create_app() -> FastAPI:
     app.state.load_failed = False
     app.state.store = None
 
+    # CORS'tan önce eklenir: 413 yanıtı da CORS başlıklarıyla döner, tarayıcı mesajı okuyabilir.
+    app.add_middleware(BodySizeLimitMiddleware, max_mb=settings.max_upload_mb)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

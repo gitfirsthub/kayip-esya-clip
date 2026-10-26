@@ -104,6 +104,30 @@ def test_too_large_413(api):
     assert r.json() == {"detail": "Dosya çok büyük. En fazla 1 MB yükleyebilirsiniz."}
 
 
+TOO_LARGE_1MB = {"detail": "Dosya çok büyük. En fazla 1 MB yükleyebilirsiniz."}
+
+
+def test_oversized_body_rejected_before_reading(api):
+    # Sınır: MAX_UPLOAD_MB (1) + 1 MB form payı. Content-Length bakılarak gövde okunmadan 413.
+    body = b"x" * (3 * 1024 * 1024)
+    for url in ("/api/items", "/api/search", "/api/lost-reports"):
+        r = api.post(url, content=body, headers={"Content-Type": "multipart/form-data; boundary=b", "Origin": "http://localhost:3000"})
+        assert r.status_code == 413, url
+        assert r.json() == TOO_LARGE_1MB
+        assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_oversized_chunked_body_rejected(api):
+    def chunks():
+        for _ in range(48):
+            yield b"x" * (64 * 1024)
+
+    r = api.post("/api/search", content=chunks(), headers={"Content-Type": "multipart/form-data; boundary=b"})
+    assert r.status_code == 413
+    assert r.json() == TOO_LARGE_1MB
+    assert api.get("/health").status_code == 200
+
+
 def test_field_validation_messages(api):
     cases = [
         ({"title": "ab"}, "Başlık 3 ile 80 karakter arasında olmalıdır."),
