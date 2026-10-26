@@ -9,7 +9,7 @@
 | 4 Frontend | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | React 19.3.1 + Vite 8.3.5 + TS 7.0.2; üç sekme (arama, yükleme, liste); `npm run build` ve `tsc` hatasız; nginx imajı build oldu, SPA fallback 200; backend ile CORS preflight geçti; spec-guard kritik ihlal yok |
 | 5 Compose | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | docker-compose.yml (PLAN tanımı), .env.example notları; `.env`siz temiz klonda tek komutla ayağa kalktı; meta/yükleme/arama curl ile geçti; amd64 backend build'i başarılı; spec-guard kritik kod ihlali yok |
 | 6 Eval | ✅ | 2026-10-26 | 21 ilan + 42 TR/42 EN metin + 7 görsel sorgu; seed_demo.py, eval_retrieval.py, EVAL.md; TR metin R@5 0.857 / R@1 0.524; eşikler 0.315/0.255; 83 test geçti; spec-guard kritik ihlal yok |
-| 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda; temiz klon testi sürüyor) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
+| 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
 | 8 Denetim | ⬜ | | |
 | 9 Dokümantasyon | ⬜ | | |
 
@@ -43,6 +43,8 @@
 - Faz 5: BACKEND_PORT backend'de okunmuyor (CMD 8000 sabit); compose'da portu eşle veya .env.example'dan çıkar (spec-guard notu).
 
 ## Ölçümler (build süresi, imaj boyutu, gecikmeler)
+- Faz 7 temiz klon (commit 79d0e56, `.env`siz, M4 Pro, docker-tester; 8000/3000 dolu olduğundan BACKEND_PORT=18000, FRONTEND_PORT=13000, VITE_API_URL ile): `build --no-cache` 336 sn; `up -d` ~11 sn, /health ilk denemede ok, restart sonrası 6 sn. İmajlar: backend 4.11 GB, frontend 93.6 MB; bellek backend 457 MiB. Gecikmeler: /api/meta 6 ms; POST /api/items 88–119 ms (eşleştirme dahil); metin arama 27–33 ms; görsel arama 72–77 ms; POST /api/lost-reports metin 37–41 ms, görselli 97 ms. Uçtan uca GEÇTİ: rapor → kod (8 karakter, yasak karakter yok) → ilan ekle → /matches'te görünür (mavi şemsiye 0.3161 yüksek, kırmızı 0.2759 orta, gri çanta eşleşmedi); ilanlar varken yeni rapor anında eşleşti; geçersiz kod 422, bilinmeyen 404, küçük harf kabul; restart sonrası rapor ve eşleşmeler korundu. Görselli rapor: mavi 1.0, kırmızı 0.9396 eşleşti, gri çanta 0.596 elendi (0.80 eşiği).
+- Faz 7 bulgusu: `/api/search` görsel aramada hâlâ metin eşiklerini kullanıyor; üç ilan da (alakasız gri çanta 0.596 dahil) "yüksek" etiketi aldı. Bildirim eşleşmesi ayrı eşik kullandığı için etkilenmedi. Fikir Havuzu maddesi aynen duruyor, `/api/search` değiştirilmedi.
 - Faz 5 (Apple M4 Pro, Docker 8 GB): temiz klonda `docker compose build --no-cache` 216 sn (soğuk, torch + modeller inerek); `buildx --platform linux/amd64 ./backend` 235 sn, x86_64 torch tekerleği (`manylinux_2_28_x86_64`) indi, YuNet indi; amd64 imajı ÇALIŞTIRILMADI (yalnızca build). İmajlar: backend 4.11 GB (sıkıştırılmış ~1.34 GB), frontend 93.6 MB.
 - Faz 5 temiz klon (`.env`siz, önbellekli build 7.8 sn): /health ilk denemede ok; /api/meta 12 ms; POST /api/items 201 116 ms (şemsiye 0.997, mavi); metinle arama 37 ms (skor 0.323 yüksek), görselle arama 75 ms (skor 1.0); backend restart sonrası item_count korundu (app_data); kullanıcı uid 10001; HF_HUB_OFFLINE=1.
 - Faz 4: frontend imajı 93.6 MB (nginx:alpine + dist); derlenmiş JS 234.9 kB (gzip 73.3 kB), CSS 3.8 kB.
