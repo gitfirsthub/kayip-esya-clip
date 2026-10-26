@@ -146,3 +146,19 @@ def test_concurrent_adds(store):
     assert store.count() == 80
     assert store.list_items(limit=100)[1] == 80
     assert len(store.search(unit(0), top_k=100)) == 80
+
+
+THRESHOLDS = dict(high=0.9, medium=0.5, image_high=0.95, image_medium=0.8)
+
+
+@pytest.mark.parametrize("weight, matched", [(0.0, False), (0.6, True)])
+def test_report_text_score_uses_item_text_index(store, weight, matched):
+    # Sorgu ilan görseline dik (cos 0), ilan metnine paralel (cos 1): skor = weight; eşik 0.5.
+    report = store.add_report("h1", "mavi şemsiye", None, unit(1), None)
+    item = store.add(fields(), unit(0), unit(1))
+    assert store.match_report_to_items(report["id"], text_weight=weight, **THRESHOLDS) == int(matched)
+    store.add_report("h2", "mavi şemsiye", None, unit(1), None)
+    saved = store.match_item_to_reports(
+        item["id"], item["location"], unit(0), text_embedding=unit(1), text_weight=weight, **THRESHOLDS
+    )
+    assert saved == (2 if matched else 0)

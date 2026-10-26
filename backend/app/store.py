@@ -377,8 +377,11 @@ class Store:
     @staticmethod
     def _best_score(
         item_vec: np.ndarray,
+        item_text_vec: np.ndarray,
         text_blob: bytes | None,
         image_blob: bytes | None,
+        *,
+        text_weight: float,
         high: float,
         medium: float,
         image_high: float,
@@ -386,14 +389,20 @@ class Store:
     ) -> tuple[float, str] | None:
         """Kendi eşiğini geçen metin/görsel skorlarından en yükseğini ve düzeyini döndürür; geçmezse None.
 
+        Metin skoru aramayla aynı formüldür (etiket bonusu hariç): (1-w)·cos(sorgu, ilan görseli) +
+        w·cos(sorgu, ilan metni); böylece MATCH_HIGH/MATCH_MEDIUM aramayla aynı ölçekte kalır.
         Görsel-görsel skorları metinden çok yüksek olduğu için her tür kendi eşik çiftiyle değerlendirilir;
         düzey, eşiğini geçen türlerden en iyisidir.
         """
+        scores = []
+        if text_blob is not None:
+            q = np.frombuffer(text_blob, dtype=np.float32)
+            text_score = (1 - text_weight) * float(q @ item_vec) + text_weight * float(q @ item_text_vec)
+            scores.append((text_score, high, medium))
+        if image_blob is not None:
+            scores.append((float(np.frombuffer(image_blob, dtype=np.float32) @ item_vec), image_high, image_medium))
         passed: list[tuple[float, str]] = []
-        for blob, hi, med in ((text_blob, high, medium), (image_blob, image_high, image_medium)):
-            if blob is None:
-                continue
-            score = float(np.frombuffer(blob, dtype=np.float32) @ item_vec)
+        for score, hi, med in scores:
             if score >= med:
                 passed.append((score, "yüksek" if score >= hi else "orta"))
         if not passed:
@@ -414,6 +423,8 @@ class Store:
         location: str,
         embedding: np.ndarray,
         *,
+        text_embedding: np.ndarray | None = None,
+        text_weight: float = 0.0,
         high: float,
         medium: float,
         image_high: float,
@@ -421,6 +432,7 @@ class Store:
     ) -> int:
         """Yeni ilanı tüm açık bildirimlerle karşılaştırır; eşleşenleri kaydeder, sayısını döndürür."""
         vec = self._check_vec(embedding)
+        text_vec = self._check_vec(text_embedding) if text_embedding is not None else vec
         saved = 0
         with self._lock:
             rows = self._conn.execute(
@@ -431,7 +443,8 @@ class Store:
                     if r["location"] and r["location"] != location:
                         continue
                     match = self._best_score(
-                        vec, r["text_embedding"], r["image_embedding"], high, medium, image_high, image_medium
+                        vec, text_vec, r["text_embedding"], r["image_embedding"], text_weight=text_weight,
+                        high=high, medium=medium, image_high=image_high, image_medium=image_medium,
                     )
                     if match is not None:
                         self._save_match(r["id"], item_id, *match)
@@ -439,7 +452,14 @@ class Store:
         return saved
 
     def match_report_to_items(
-        self, report_id: str, *, high: float, medium: float, image_high: float, image_medium: float
+        self,
+        report_id: str,
+        *,
+        text_weight: float = 0.0,
+        high: float,
+        medium: float,
+        image_high: float,
+        image_medium: float,
     ) -> int:
         """Yeni bildirimi bekleyen mevcut ilanlarla karşılaştırır; eşleşenleri kaydeder."""
         saved = 0
@@ -457,7 +477,9 @@ class Store:
                     if r["location"] and self._locations[i] != r["location"]:
                         continue
                     match = self._best_score(
-                        self._matrix[i], r["text_embedding"], r["image_embedding"], high, medium, image_high, image_medium
+                        self._matrix[i], self._text_matrix[i], r["text_embedding"], r["image_embedding"],
+                        text_weight=text_weight, high=high, medium=medium, image_high=image_high,
+                        image_medium=image_medium,
                     )
                     if match is not None:
                         self._save_match(r["id"], item_id, *match)

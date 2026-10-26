@@ -59,6 +59,7 @@ async def create_lost_report(
         await run_in_threadpool(
             lambda: store.match_report_to_items(
                 report["id"],
+                text_weight=settings.search_text_weight,
                 high=settings.match_high,
                 medium=settings.match_medium,
                 image_high=settings.match_image_high,

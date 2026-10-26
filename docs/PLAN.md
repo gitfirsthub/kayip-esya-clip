@@ -124,7 +124,7 @@ Kabul: EVAL.md'de gerçek sayılar var; eşikler .env.example'da güncel.
 
 ## Faz 7: (Ek, yalnızca Faz 1–6 tamamsa) Kayıp bildirimi ve otomatik eşleşme
 - POST /api/lost-reports (query metni + opsiyonel görsel, yer, tarih) → {tracking_code} (8 karakter, tahmin edilemez). Rapor embedding'i saklanır; görsel saklanmaz.
-- Yeni bulunan eşya eklenince açık raporlarla eşleşme hesaplanır ve skor ≥ MATCH_MEDIUM olanlar kaydedilir.
+- Yeni bulunan eşya eklenince açık raporlarla eşleşme hesaplanır ve skor ≥ MATCH_MEDIUM olanlar kaydedilir. (Faz 8: metin skoru aramayla aynı formülle, SEARCH_TEXT_WEIGHT dahil, etiket bonusu hariç; görselli rapor MATCH_IMAGE_* eşikleriyle.)
 - GET /api/lost-reports/{code}/matches → eşleşen ilanlar. Frontend'de "Takip kodumla kontrol et" kutusu.
 - İletişim bilgisi YOK; bildirim servisi YOK.
 Kabul: testler + uçtan uca senaryo (önce rapor, sonra ilan, sonra kodla eşleşme görünür).

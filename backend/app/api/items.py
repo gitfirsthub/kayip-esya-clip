@@ -188,6 +188,8 @@ async def create_item(
                 record["id"],
                 record["location"],
                 embedding,
+                text_embedding=text_embedding,
+                text_weight=settings.search_text_weight,
                 high=settings.match_high,
                 medium=settings.match_medium,
                 image_high=settings.match_image_high,
