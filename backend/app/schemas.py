@@ -57,6 +57,10 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class AdminMe(BaseModel):
+    scope: str | None = None
+
+
 class LostReportCreated(BaseModel):
     tracking_code: str
 

@@ -224,9 +224,15 @@ class Store:
         category: str | None = None,
         limit: int = 20,
         offset: int = 0,
+        dropoff_point: str | None = None,
     ) -> tuple[list[dict], int]:
         clauses, params = [], []
-        for column, value in (("status", status), ("location", location), ("category", category)):
+        for column, value in (
+            ("status", status),
+            ("location", location),
+            ("category", category),
+            ("dropoff_point", dropoff_point),
+        ):
             if value:
                 clauses.append(f"{column} = ?")
                 params.append(value)

@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     match_medium: float = 0.255
     match_image_medium: float = 0.80
     admin_token: str = ""
+    admin_point_tokens: str = ""  # JSON: {"<teslim noktası>": "<token>"}
     ocr_enabled: bool = True
     ocr_langs: str = "tur+eng"
     ocr_max_side: int = 1600
@@ -31,6 +33,19 @@ class Settings(BaseSettings):
     tag_bonus: float = 0.05
     tag_bonus_max: float = 0.10
     log_level: str = "INFO"
+
+    @property
+    def point_tokens(self) -> dict[str, str]:
+        """Teslim noktası -> token. Bozuk JSON güvenli tarafta boş sayılır (nokta tokenları kapalı)."""
+        if not self.admin_point_tokens.strip():
+            return {}
+        try:
+            data = json.loads(self.admin_point_tokens)
+        except ValueError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): v for k, v in data.items() if isinstance(v, str) and v}
 
     @property
     def cors_origin_list(self) -> list[str]:

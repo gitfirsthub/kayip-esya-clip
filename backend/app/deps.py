@@ -42,12 +42,27 @@ def get_campus(request: Request) -> dict:
     return request.app.state.campus
 
 
+def _same(a: str, b: str) -> bool:
+    return secrets.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
 def require_admin(
     x_admin_token: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
-) -> None:
-    expected = settings.admin_token
-    if not expected or not x_admin_token:
+) -> str | None:
+    """Yetkili kapsamı döndürür: None = tüm noktalar (genel token), str = tek teslim noktası.
+
+    Bütün adaylar sabit zamanlı karşılaştırılır; ilk eşleşmede erken çıkılmaz.
+    """
+    if not x_admin_token:
         raise ApiError(403, MSG_FORBIDDEN)
-    if not secrets.compare_digest(x_admin_token.encode("utf-8"), expected.encode("utf-8")):
+    scope: str | None = None
+    ok = False
+    if settings.admin_token and _same(x_admin_token, settings.admin_token):
+        ok = True
+    for point, token in settings.point_tokens.items():
+        if _same(x_admin_token, token) and not ok:
+            ok, scope = True, point
+    if not ok:
         raise ApiError(403, MSG_FORBIDDEN)
+    return scope
