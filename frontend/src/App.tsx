@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getMeta } from "./api";
 import FoundTab from "./components/FoundTab";
 import ErrorBox from "./components/ErrorBox";
+import ItemsTab from "./components/ItemsTab";
 import SearchTab from "./components/SearchTab";
 import Spinner from "./components/Spinner";
 import Tabs, { type TabDef } from "./components/Tabs";
@@ -10,6 +11,7 @@ import type { Meta } from "./types";
 const TABS: TabDef[] = [
   { id: "search", label: "Eşyamı Kaybettim" },
   { id: "found", label: "Eşya Buldum" },
+  { id: "items", label: "Tüm İlanlar" },
 ];
 
 export default function App() {
@@ -56,6 +58,7 @@ export default function App() {
           )}
           {meta && active === "search" && <SearchTab meta={meta} />}
           {meta && active === "found" && <FoundTab meta={meta} />}
+          {meta && active === "items" && <ItemsTab />}
         </div>
       </main>
     </div>
