@@ -11,3 +11,4 @@ backend/data/
 .DS_Store
 .idea/
 demo_data/raw/
+redact_out/
