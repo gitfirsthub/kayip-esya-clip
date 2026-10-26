@@ -1,9 +1,20 @@
 """pii.py birim testleri. Tesseract gerekmez; Word nesneleri elle kurulur.
 Bütün numaralar UYDURMADIR (ör. 12345678901, 05321234567)."""
+import numpy as np
 import pytest
+from PIL import Image
 
 from app.ml.ocr import Word
-from app.ml.pii import classify_digits, detect_pii, group_lines, tckn_checksum_ok
+from app.ml.pii import (
+    classify_digits,
+    detect_pii,
+    expand_and_clip,
+    find_redactions,
+    group_lines,
+    merge_boxes,
+    redact,
+    tckn_checksum_ok,
+)
 
 FAKE_TCKN = "12345678901"
 FAKE_PHONE = "05321234567"
@@ -210,3 +221,78 @@ def test_empty_input():
 
 def test_ampersand_between_words_is_not_email():
     assert redacted_texts(line("Ben", "&", "Jerry")) == []
+
+
+# --- Kutu genişletme, birleştirme, siyah bant ---
+
+def test_expand_and_clip():
+    assert expand_and_clip((10, 10, 20, 20), (100, 100)) == (6, 6, 24, 24)
+    assert expand_and_clip((1, 2, 98, 99), (100, 100)) == (0, 0, 100, 100)
+
+
+def test_merge_touching_and_overlapping_boxes():
+    boxes = [(0, 0, 10, 10), (10, 0, 20, 10), (50, 50, 60, 60), (55, 55, 70, 70), (100, 100, 110, 110)]
+    assert merge_boxes(boxes) == [(0, 0, 20, 10), (50, 50, 70, 70), (100, 100, 110, 110)]
+
+
+def test_merge_is_transitive():
+    # c ancak a+b birleşince ona değer.
+    boxes = [(0, 0, 10, 10), (30, 0, 40, 10), (5, 5, 35, 8)]
+    assert merge_boxes(boxes) == [(0, 0, 40, 10)]
+
+
+def test_merge_keeps_separate_boxes_and_drops_empty():
+    assert merge_boxes([(0, 0, 10, 10), (11, 0, 20, 10), (5, 5, 5, 9)]) == [(0, 0, 10, 10), (11, 0, 20, 10)]
+
+
+def test_find_redactions_covers_every_word_of_split_phone_and_merges():
+    words = line("CASIO", "fx-991", "0532", "123", "45", "67", gap=12)
+    result = find_redactions(words, faces=0, img_size=(1000, 500))
+    assert result.document_like is False
+    # Dört parça + 4 px genişletme: 12 px aralık 8 px'e iner, değmez; dört ayrı kutu kalır.
+    assert len(result.boxes) == 4
+    for w in words[2:]:
+        x0, y0, x1, y1 = w.box
+        assert any(b[0] <= x0 - 4 and b[1] <= y0 - 4 and b[2] >= x1 + 4 and b[3] >= y1 + 4 for b in result.boxes)
+    for w in words[:2]:
+        assert not any(_overlaps(b, w.box) for b in result.boxes)
+    close = line("0532", "123", "45", "67", gap=6)
+    assert len(find_redactions(close, 0, (1000, 500)).boxes) == 1
+
+
+def test_find_redactions_clips_to_image():
+    words = [Word(FAKE_PHONE, 90.0, (0, 0, 165, 30), (1, 1, 1, 1))]
+    assert find_redactions(words, 0, (160, 32)).boxes == [(0, 0, 160, 32)]
+
+
+def test_find_redactions_nothing_to_hide():
+    assert find_redactions(line("CASIO", "fx-991ES", "PLUS"), 0, (1000, 500)).boxes == []
+
+
+def _overlaps(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def test_redact_blacks_inside_and_keeps_outside():
+    img = Image.new("RGB", (100, 80), (200, 150, 50))
+    img.putpixel((5, 5), (1, 2, 3))
+    out = redact(img, [(10, 20, 30, 40), (60, 0, 100, 80)])
+    assert out is not img
+    arr, orig = np.asarray(out), np.asarray(img)
+    assert (arr[20:40, 10:30] == 0).all()
+    assert (arr[:, 60:100] == 0).all()
+    mask = np.ones(arr.shape[:2], dtype=bool)
+    mask[20:40, 10:30] = False
+    mask[:, 60:100] = False
+    assert np.array_equal(arr[mask], orig[mask])
+    # Dışlayıcı sınır: x1=30 sütunu ve y1=40 satırı değişmez.
+    assert tuple(arr[39, 30]) == (200, 150, 50) and tuple(arr[40, 29]) == (200, 150, 50)
+    # Girdi değişmedi.
+    assert tuple(np.asarray(img)[25, 15]) == (200, 150, 50)
+
+
+def test_redact_grayscale_and_empty_boxes():
+    img = Image.new("L", (20, 20), 255)
+    out = redact(img, [(0, 0, 5, 5), (7, 7, 7, 9)])
+    arr = np.asarray(out)
+    assert (arr[0:5, 0:5] == 0).all() and arr[5:, 5:].min() == 255

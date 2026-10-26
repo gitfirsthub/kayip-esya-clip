@@ -6,8 +6,13 @@ TCKN/telefon/IBAN/kart desenleri yalnızca türü adlandırır ve satır içinde
 import re
 from dataclasses import dataclass
 
+from PIL import Image, ImageDraw
+
 from app.ml.ocr import Word
 
+Box = tuple[int, int, int, int]
+
+BOX_PADDING = 4
 GENERIC_MIN_DIGITS = 6
 # Harf yapışık belirteçlerde bile bu kadar ardışık rakam varsa sansürlenir (model kodları ≤ 4-5 rakamlıdır;
 # OCR'ın harfe yapıştırdığı TCKN/telefon kaçmasın).
@@ -35,6 +40,12 @@ LITERAL_AT_RE = re.compile(r"\w[@＠]|[@＠]\w")
 class PiiMatch:
     kind: str  # "email" | "iban" | "card" | "tckn" | "phone" | "number"
     words: tuple[int, ...]  # girdi listesindeki kelime indeksleri
+
+
+@dataclass
+class RedactionResult:
+    boxes: list[Box]  # genişletilmiş, kırpılmış, birleştirilmiş; çalışma kopyası koordinatı
+    document_like: bool
 
 
 @dataclass
@@ -259,3 +270,49 @@ def detect_pii(words: list[Word]) -> list[PiiMatch]:
             if longest >= GLUED_MIN_DIGITS:
                 matches.append(PiiMatch("number", (tok.word,)))
     return matches
+
+
+def expand_and_clip(box: Box, img_size: tuple[int, int], pad: int = BOX_PADDING) -> Box:
+    w, h = img_size
+    x0, y0, x1, y1 = box
+    return max(0, x0 - pad), max(0, y0 - pad), min(w, x1 + pad), min(h, y1 + pad)
+
+
+def _touch(a: Box, b: Box) -> bool:
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
+def merge_boxes(boxes: list[Box]) -> list[Box]:
+    """Birbirine değen ya da çakışan kutuları, değişiklik kalmayana dek birleştirir. Çıktı sıralıdır."""
+    merged = [b for b in boxes if b[2] > b[0] and b[3] > b[1]]
+    changed = True
+    while changed:
+        changed = False
+        out: list[Box] = []
+        for box in merged:
+            for k, other in enumerate(out):
+                if _touch(box, other):
+                    out[k] = (min(box[0], other[0]), min(box[1], other[1]), max(box[2], other[2]), max(box[3], other[3]))
+                    changed = True
+                    break
+            else:
+                out.append(box)
+        merged = out
+    return sorted(merged)
+
+
+def find_redactions(words: list[Word], faces: int, img_size: tuple[int, int]) -> RedactionResult:
+    """Sansürlenecek kutular. Bir desen birden çok kelimeye yayıldıysa her kelimenin kutusu girer."""
+    indices = sorted({i for m in detect_pii(words) for i in m.words})
+    boxes = [expand_and_clip(words[i].box, img_size) for i in indices]
+    return RedactionResult(boxes=merge_boxes(boxes), document_like=False)
+
+
+def redact(img: Image.Image, boxes: list[Box]) -> Image.Image:
+    """Kutuları siyah dolu dikdörtgenle kapatır (bulanıklaştırma değil). Yeni görüntü döndürür."""
+    out = img.copy()
+    draw = ImageDraw.Draw(out)
+    for x0, y0, x1, y1 in boxes:
+        if x1 > x0 and y1 > y0:
+            draw.rectangle((x0, y0, x1 - 1, y1 - 1), fill="black")
+    return out
