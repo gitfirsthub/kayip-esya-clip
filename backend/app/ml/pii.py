@@ -4,6 +4,7 @@ Kural: Şüphede sansürle. Her 6+ haneli rakam dizisi (ayırıcılar yok sayıl
 TCKN/telefon/IBAN/kart desenleri yalnızca türü adlandırır ve satır içinde dağılmış parçaları birleştirir.
 """
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
@@ -69,7 +70,11 @@ class _Token:
 
 
 def _fix_digits(text: str) -> str:
-    """%60+ rakamlı belirteçlerde rakama benzeyen harfleri rakama çevirir."""
+    """%60+ rakamlı belirteçlerde rakama benzeyen harfleri rakama çevirir.
+
+    Önce NFKC: üst simge (²), daire içi (①) ve tam genişlikli rakamlar ASCII rakama döner.
+    """
+    text = unicodedata.normalize("NFKC", text)
     core = [c for c in text if c not in SEPARATORS + "+"]
     if not core:
         return text
@@ -83,8 +88,9 @@ def _as_number(text: str) -> str | None:
     """Belirteç yalnızca rakam (+ ayırıcı, baştaki +) içeriyorsa rakamlarını döndürür; aksi halde None."""
     fixed = _fix_digits(text)
     body = fixed[1:] if fixed.startswith("+") else fixed
-    if body and all(c.isdigit() or c in SEPARATORS for c in body):
-        return "".join(c for c in body if c.isdigit())
+    # isdecimal: int() ile çevrilebilen rakamlar (isdigit ² gibi karakterleri de kabul eder, int patlar).
+    if body and all(c.isdecimal() or c in SEPARATORS for c in body):
+        return "".join(c for c in body if c.isdecimal())
     return None
 
 
@@ -162,7 +168,7 @@ def _luhn_ok(digits: str) -> bool:
 
 def tckn_checksum_ok(digits: str) -> bool:
     """TCKN sağlama toplamı. Yalnızca bilgi amaçlı: tutmasa da 11 hane sansürlenir (OCR hatası olabilir)."""
-    if len(digits) != 11 or not digits.isdigit() or digits[0] == "0":
+    if len(digits) != 11 or not digits.isdecimal() or digits[0] == "0":
         return False
     d = [int(c) for c in digits]
     if ((sum(d[0:9:2]) * 7 - sum(d[1:8:2])) % 10) != d[9]:

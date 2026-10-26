@@ -353,3 +353,9 @@ def test_face_with_many_words_is_document_like():
     result = find_redactions(words, faces=1, img_size=(2000, 500))
     assert result.document_like
     assert len(result.boxes) == 8
+
+
+@pytest.mark.parametrize("text", ["411111111111111²", "0532①234567", "０５３２１２３４５６７"])
+def test_unicode_digits_do_not_crash_and_are_redacted(text):
+    # OCR üst simge, daire içi ya da tam genişlikli rakam döndürebilir; 500 vermemeli, sansürlenmeli.
+    assert redacted_texts(line(text)) == [text]
