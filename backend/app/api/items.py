@@ -135,6 +135,20 @@ async def create_item(
         if os.path.exists(path):
             os.remove(path)
         raise
+    # Eşleştirme ek bir özelliktir; hata verirse ilan kaydı yine de başarılı döner.
+    try:
+        await run_in_threadpool(
+            lambda: store.match_item_to_reports(
+                record["id"],
+                record["location"],
+                embedding,
+                high=settings.match_high,
+                medium=settings.match_medium,
+                image_medium=settings.match_image_medium,
+            )
+        )
+    except Exception:
+        logger.error("İlan açık bildirimlerle eşleştirilemedi.", exc_info=True)
     return to_item(record)
 
 

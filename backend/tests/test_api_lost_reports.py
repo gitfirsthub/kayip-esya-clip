@@ -95,3 +95,62 @@ def test_report_skips_returned_items(api):
     assert r.status_code == 200
     code = post_report(api, query="şemsiye").json()["tracking_code"]
     assert api.get(f"/api/lost-reports/{code}/matches").json()["matches"] == []
+
+
+def test_report_then_item_shows_match(api):
+    open_matching(api)
+    code = post_report(api, query="mavi şemsiye").json()["tracking_code"]
+    assert api.get(f"/api/lost-reports/{code}/matches").json()["matches"] == []
+    item = post_item(api).json()
+    body = api.get(f"/api/lost-reports/{code}/matches").json()
+    assert [m["item"]["id"] for m in body["matches"]] == [item["id"]]
+    assert body["matches"][0]["match_level"] in ("yüksek", "orta")
+
+
+def test_new_item_below_threshold_not_matched(api):
+    code = post_report(api, query="mavi şemsiye").json()["tracking_code"]
+    api.settings.match_medium = 2.0
+    post_item(api)
+    assert api.get(f"/api/lost-reports/{code}/matches").json()["matches"] == []
+
+
+def test_new_item_respects_report_location(api):
+    open_matching(api)
+    code = post_report(api, query="şemsiye", location="Merkez Kütüphane").json()["tracking_code"]
+    post_item(api, location="Yemekhane")
+    assert api.get(f"/api/lost-reports/{code}/matches").json()["matches"] == []
+    item = post_item(api, location="Merkez Kütüphane").json()
+    ids = [m["item"]["id"] for m in api.get(f"/api/lost-reports/{code}/matches").json()["matches"]]
+    assert ids == [item["id"]]
+
+
+def test_deleted_item_disappears_from_matches(api):
+    open_matching(api)
+    code = post_report(api, query="şemsiye").json()["tracking_code"]
+    item = post_item(api).json()
+    r = api.delete(f"/api/items/{item['id']}", headers={"X-Admin-Token": ADMIN_TOKEN})
+    assert r.status_code == 204
+    assert api.get(f"/api/lost-reports/{code}/matches").json()["matches"] == []
+
+
+def test_matching_failure_does_not_break_item_creation(api, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("eşleştirme patladı")
+
+    monkeypatch.setattr("app.store.Store.match_item_to_reports", boom)
+    r = post_item(api)
+    assert r.status_code == 201
+    assert api.get("/health").json()["item_count"] == 1
+
+
+def test_image_report_uses_image_threshold(api):
+    api.settings.match_medium = 2.0  # metin yolu kapalı
+    api.settings.match_image_medium = -1.0
+    code = api.post(
+        "/api/lost-reports",
+        data={},
+        files={"image": ("a.jpg", make_image_bytes(), "image/jpeg")},
+    ).json()["tracking_code"]
+    item = post_item(api).json()
+    ids = [m["item"]["id"] for m in api.get(f"/api/lost-reports/{code}/matches").json()["matches"]]
+    assert ids == [item["id"]]
