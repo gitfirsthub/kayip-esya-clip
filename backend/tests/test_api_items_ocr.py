@@ -12,8 +12,8 @@ from tests.test_api_items import post_item, uploaded_files
 MSG_OCR = {"detail": "Görsel gizlilik kontrolünden geçirilemedi, lütfen tekrar deneyin."}
 
 
-def word(text, x0, y0, x1, y1, line=1):
-    return Word(text=text, conf=90.0, box=(x0, y0, x1, y1), line_id=(1, 1, 1, line))
+def word(text, x0, y0, x1, y1, line=1, conf=90.0):
+    return Word(text=text, conf=conf, box=(x0, y0, x1, y1), line_id=(1, 1, 1, line))
 
 
 def test_ocr_error_returns_503_and_nothing_saved(api, ocr):
@@ -92,3 +92,19 @@ def test_new_fields_persist(api, ocr):
     assert fetched["tags"] == created["tags"] == ["casio"]
     assert fetched["redacted_regions"] == 0
     assert fetched["document_like"] is False
+
+
+def test_low_confidence_phone_is_redacted_but_not_tagged(api, ocr):
+    # OCR_MIN_CONF (30) altındaki kelimeler etiket olmaz ama kişisel veriyse yine kapatılır.
+    ocr.words = [
+        word("CASIO", 10, 10, 90, 30, line=1, conf=12.0),
+        word("05321234567", 10, 60, 150, 80, line=2, conf=12.0),
+    ]
+    r = post_item(api, image=make_image_bytes(color=(250, 250, 250), size=(320, 240)))
+    assert r.status_code == 201
+    body = r.json()
+    assert body["redacted_regions"] == 1
+    assert body["tags"] == []
+    path = os.path.join(api.settings.data_dir, "uploads", os.path.basename(body["image_url"]))
+    with Image.open(path) as saved:
+        assert max(saved.convert("RGB").getpixel((80, 70))) < 40

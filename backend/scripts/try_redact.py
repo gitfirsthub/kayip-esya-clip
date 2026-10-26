@@ -19,7 +19,7 @@ from PIL import Image  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.ml.face_blur import FaceBlurError, FaceBlurrer  # noqa: E402
 from app.ml.image_io import InvalidImageError, load_and_sanitize  # noqa: E402
-from app.ml.ocr import OcrEngine, OcrError  # noqa: E402
+from app.ml.ocr import OcrEngine, OcrError, confident_words  # noqa: E402
 from app.ml.pii import find_redactions, redact  # noqa: E402
 from app.ml.tags import extract_tags, load_brands  # noqa: E402
 
@@ -75,7 +75,7 @@ def main() -> int:
     t0 = time.perf_counter()
     result = find_redactions(words, faces, work.size)
     out = redact(blurred, result.boxes)
-    tags = [] if result.document_like else extract_tags(words, result.boxes, load_brands())
+    tags = [] if result.document_like else extract_tags(confident_words(words, settings.ocr_min_conf), result.boxes, load_brands())
     pii_ms = _ms(t0)
     out.thumbnail((settings.max_image_side, settings.max_image_side), Image.Resampling.LANCZOS)
     total_ms = _ms(t_total)

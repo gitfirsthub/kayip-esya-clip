@@ -103,11 +103,13 @@ def test_run_ocr_passes_settings_filters_and_rescales(monkeypatch):
     assert seen["config"] == "--oem 1 --psm 11"
     assert seen["timeout"] == 8
     assert seen["out"] == pytesseract.Output.DICT
-    assert [w.text for w in words] == ["CASIO", "fx-991"]
+    # Düşük güvenli kelime de döner (sansür için); boş ve conf=-1 satırlar elenir.
+    assert [w.text for w in words] == ["CASIO", "gurultu", "fx-991"]
+    assert [w.text for w in ocr.confident_words(words, 30)] == ["CASIO", "fx-991"]
     assert words[0] == Word("CASIO", 91.5, (50, 20, 150, 50), (1, 1, 1, 1))
     # Tek koordinatlar dışa yuvarlanır: kutu küçülmez.
-    assert words[1].box == (50, 20, 151, 51)
-    assert words[1].line_id == (1, 1, 1, 2)
+    assert words[2].box == (50, 20, 151, 51)
+    assert words[2].line_id == (1, 1, 1, 2)
 
 
 def test_large_image_is_not_upscaled(monkeypatch):

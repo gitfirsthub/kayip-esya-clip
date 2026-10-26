@@ -15,6 +15,11 @@ UPSCALE_MAX_SIDE = 1000
 TESSERACT_CONFIG = "--oem 1 --psm 11"
 
 
+def confident_words(words: list["Word"], min_conf: float) -> list["Word"]:
+    """Etiket çıkarmada kullanılacak kelimeler. Sansür kararında KULLANILMAZ."""
+    return [w for w in words if w.conf >= min_conf]
+
+
 @dataclass(frozen=True)
 class Word:
     text: str
@@ -31,7 +36,11 @@ class OcrError(Exception):
 
 
 class OcrEngine:
-    """`available=False` ise ya da OCR herhangi bir nedenle başarısız olursa `run_ocr` OcrError fırlatır."""
+    """`available=False` ise ya da OCR herhangi bir nedenle başarısız olursa `run_ocr` OcrError fırlatır.
+
+    `run_ocr` güveni ne olursa olsun bütün kelimeleri döndürür: düşük güvenle okunmuş bir numara da
+    sansürlenmelidir. `min_conf` yalnızca etiket çıkarmada kullanılır (bkz. `confident_words`).
+    """
 
     def __init__(self, langs: str, timeout_s: float, min_conf: float):
         self.langs = langs
@@ -89,7 +98,7 @@ class OcrEngine:
                 conf = float(data["conf"][i])
             except (TypeError, ValueError):
                 continue
-            if conf < self.min_conf:
+            if conf < 0:  # tesseract'ın kelime olmayan yapı satırları
                 continue
             left, top = int(data["left"][i]), int(data["top"][i])
             right, bottom = left + int(data["width"][i]), top + int(data["height"][i])

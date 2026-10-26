@@ -14,7 +14,7 @@ from app.deps import get_blurrer, get_brands, get_campus, get_encoder, get_ocr, 
 from app.errors import ApiError
 from app.ml.face_blur import FaceBlurError
 from app.ml.image_io import InvalidImageError, load_and_sanitize
-from app.ml.ocr import OcrError
+from app.ml.ocr import OcrError, confident_words
 from app.ml.pii import find_redactions, redact
 from app.ml.tags import extract_tags
 from app.schemas import Item, ItemList
@@ -60,12 +60,15 @@ def item_text(title: str, description: str, tags: list[str]) -> str:
     return " ".join(part for part in (title, description, " ".join(tags)) if part)
 
 
-def redact_and_shrink(img: Image.Image, words, faces: int, brands, max_side: int):
-    """Kişisel veri kutularını siyahla kapatır, güvenli etiketleri çıkarır ve görseli max_side'a küçültür."""
+def redact_and_shrink(img: Image.Image, words, faces: int, brands, max_side: int, min_conf: float):
+    """Kişisel veri kutularını siyahla kapatır, güvenli etiketleri çıkarır ve görseli max_side'a küçültür.
+
+    Sansür bütün kelimelere bakar; etiketler yalnızca güveni min_conf ve üstü olan kelimelerden çıkar.
+    """
     redaction = find_redactions(words, faces, img.size)
     if redaction.boxes:
         img = redact(img, redaction.boxes)
-    tags = [] if redaction.document_like else extract_tags(words, redaction.boxes, brands)
+    tags = [] if redaction.document_like else extract_tags(confident_words(words, min_conf), redaction.boxes, brands)
     if max(img.size) > max_side:
         img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     return img, redaction, tags
@@ -152,7 +155,9 @@ async def create_item(
         img, faces = await run_in_threadpool(blurrer.blur, img)
     except FaceBlurError:
         raise ApiError(503, MSG_BLUR_FAILED)
-    img, redaction, tags = await run_in_threadpool(redact_and_shrink, img, words, faces, brands, settings.max_image_side)
+    img, redaction, tags = await run_in_threadpool(
+        redact_and_shrink, img, words, faces, brands, settings.max_image_side, settings.ocr_min_conf
+    )
     del words
 
     filename = f"{uuid.uuid4().hex}.jpg"
