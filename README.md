@@ -21,7 +21,41 @@ TODO(kullanıcı): docs/screenshot.png
 
 ## Mimari
 
-<!-- MIMARI-DIYAGRAMI -->
+```mermaid
+flowchart LR
+    B["Tarayıcı"]
+
+    subgraph FE["frontend konteyneri (nginx:alpine, 3000 → 80)"]
+        N["nginx: React + Vite derlenmiş statik dosyalar<br/>/api proxy'si yok"]
+    end
+
+    subgraph BE["backend konteyneri (FastAPI + uvicorn, 8000)"]
+        API["main.py, api/*.py<br/>items, search, lost_reports, admin, meta, uploads"]
+        subgraph ML["ml/"]
+            ENC["encoder.py<br/>CLIP görsel + çok dilli metin encoder"]
+            BLUR["face_blur.py<br/>YuNet yüz bulanıklaştırma"]
+            OCR["ocr.py + pii.py<br/>Tesseract OCR, PII sansürü"]
+            TAG["tagger.py + tags.py<br/>zero-shot kategori/renk, marka/model etiketi"]
+        end
+        DB[("SQLite app.db<br/>embedding BLOB")]
+        UP["uploads/uuid.jpg<br/>yalnızca bulanıklaştırılmış JPEG"]
+    end
+
+    B -->|"sayfa (localhost:3000)"| N
+    B -->|"API çağrıları (VITE_API_URL, 8000)"| API
+    API --> BLUR
+    API --> OCR
+    API --> ENC
+    OCR -.->|"OCR kelimeleri"| TAG
+    API --> TAG
+    API --> DB
+    API --> UP
+```
+
+- Tarayıcı sayfayı nginx'ten (3000), API çağrılarını doğrudan FastAPI'ye (8000) yapar. nginx'te `/api` proxy'si yoktur; API adresi `VITE_API_URL` ile derleme zamanında gömülür.
+- Yükleme hattı: EXIF temizliği, OCR, YuNet bulanıklaştırma, PII sansürü, JPEG kaydı, CLIP embedding, zero-shot etiketleme, SQLite. OCR hata verirse yükleme kaydedilmez.
+- Orijinal görsel hiçbir aşamada diske yazılmaz. Aramada ve kayıp bildiriminde görsel kaydedilmez; embedding'ler başlangıçta bellekte matrise yüklenir.
+- Model ağırlıkları build sırasında iner; çalışma zamanında `HF_HUB_OFFLINE=1` tanımlıdır ve bulut servisi çağrılmaz.
 
 ## Yapay zekâ bileşenleri ve neden YOLO değil CLIP
 
@@ -168,4 +202,58 @@ TODO(kullanıcı): geliştirici adları
 
 ## Yapay zekâyı nasıl kullandık
 
-<!-- AI-KULLANIMI -->
+Kaynak: [docs/AI_KULLANIM_GUNLUGU.md](docs/AI_KULLANIM_GUNLUGU.md). Proje tek geliştiriciyle, Claude Code ile yürütüldü.
+
+### Araç ve model
+
+Günlük model seçiminin gerekçesini kaydetmez; tabloda yalnızca fazdaki iş yer alır.
+
+| Faz | Model | İş |
+|---|---|---|
+| 0 | Opus 5.5 | Kurulum: CLAUDE.md, docs, `.claude/` ve commit-msg hook'u |
+| 1 | Sonnet 5.5 | Backend iskeleti, `/health`, Dockerfile |
+| 2 | Opus 5.5 (ML modülleri: ml-engineer, Opus) | ML çekirdeği: CLIP, YuNet, tagger, store |
+| 3 | Sonnet 5.5 | API uçları |
+| 4 | Sonnet 5.5 (frontend-dev) | Vite + React + TypeScript arayüzü |
+| 5 | Sonnet 5.5 (docker-tester) | Compose ve temiz klon testi |
+| 6 | Opus 5.5 (ml-engineer) | Demo verisi ve retrieval değerlendirmesi |
+| 7 | Sonnet 5.5 | Kayıp bildirimi, takip kodu, otomatik eşleşme |
+| 7A | Opus 5.5 | Yerel OCR, PII sansürü, marka/model etiketi |
+| 7B | Sonnet 5.5 (frontend-dev) | Arayüz cilası, teslim noktası yönetici paneli |
+| 8 | Opus 5.5 | Şartname, kod ve güvenlik incelemesi |
+
+### Kullanılan özellikler
+
+- **Plan modu:** Her faz önce planlanıp onaylandı; kabul kriterleri plandan geldi.
+- **Slash komutlar** (`.claude/commands/`): `/faz <n>` (PLAN'daki fazı uygular), `/sartname-kontrol` (spec-guard ile tam denetim), `/temiz-klon-testi` (commit'lenmiş hali temiz klonda compose ile test eder), `/gunluk` (günlüğe kayıt ekler).
+- **Alt agent'lar** (`.claude/agents/`):
+  - `spec-guard` (sonnet): salt okunur şartname denetçisi; kod yazmaz.
+  - `ml-engineer` (opus): CLIP, zero-shot etiketleme, YuNet, retrieval değerlendirmesi, eşik ayarı.
+  - `frontend-dev` (sonnet): React arayüzü ve nginx Dockerfile'ı.
+  - `docker-tester` (sonnet): compose build ve çalıştırma, temiz klon testi, ölçümler.
+  - `docs-writer` (haiku): README ve günlük özeti için tanımlı; günlükte kullanım kaydı yok.
+- **Şartname koruma hook'u** (`.claude/hooks/spec_guard.py`, `.claude/settings.json` içinde `PreToolUse`, eşleşme `Write|Edit|MultiEdit|Bash`): Gerçekte yaptığı:
+  - Bash: force push, `--no-verify` ve `--date`, `GIT_*_DATE`, yasaklı paket kurulumu (pip/uv/npm) ve `git add .env` komutlarını engeller.
+  - Dosya yazımı: `.env` dosyasına yazmayı engeller. `.md` ve `.claude/` dosyaları muaftır.
+  - Kod ve yapılandırma dosyalarında YOLO/ultralytics, OpenAI, Anthropic, Gemini/Vertex, Groq/Cohere/Replicate, HF Inference API ve CUDA kullanımını arar; eşleşirse işlemi exit 2 ile durdurur.
+  - `settings.json` ayrıca `git push --force`, `git reset --hard`, `git rebase` ve `Read(./.env)` gibi komutları `deny` listesine koyar.
+- **Commit-msg hook'u** (`.githooks/commit-msg`, `git config core.hooksPath = .githooks`): Gerçekte yaptığı: ilk satırı `update`, `fix`, `wip`, `test`, `changes`, `commit` gibi genel bir mesajı veya boş mesajı reddeder; 15 karakterden kısa mesajı reddeder. Mesajın içeriğini denetlemez.
+
+### Örnek istemler
+
+- Faz 1: "requirements.txt'i yazmadan önce izinli paketleri kökteki mevcut venv'e kur ve çalışan sürümleri == ile sabitle. torch sürümünü Dockerfile'daki ARG TORCH_VERSION'a yaz."
+- Faz 3: "docs/PLAN.md'deki API sözleşmesinden sapma: alan adları, durum kodları ve Türkçe hata metinleri birebir aynı olmalı. Sözleşmede bir boşluk görürsen tahmin etme, bana sor."
+- Faz 7A: "FAIL-CLOSED: OCR hata verir, zaman aşımına uğrar veya tesseract binary'si yoksa yükleme KAYDEDİLMEZ."
+- Faz 8: "Bulguları 'kritik / önemli / kozmetik' diye grupla. Kritik ve önemli olanları onayımla düzelt; her düzeltme ayrı commit olsun. Kozmetikleri yalnızca listele."
+
+### Yapay zekânın yanıldığı ve düzeltilen yerler
+
+1. **Faz 1, `; true` ile gizlenen build.** Docker build komutuna `; true` eklenip çıktı gizlenmişti; daemon kapalı olduğu için build hiç çalışmamıştı. Fark edilince daemon açıldı ve build gerçek logla yeniden çalıştırıldı.
+2. **Faz 1, şişen imaj.** `chown -R /models` imajı 1,15 GB şişirdi (6,16 GB). İmaj boyutu ölçülünce chown kaldırıldı; imaj 4,11 GB oldu.
+3. **Faz 5, sahte nginx `/api` başarısı.** docker-tester, nginx üzerinden `:3000/api/meta` için 200 bildirdi. `nginx.conf`'ta proxy olmadığı, 200'ün SPA fallback'inden geldiği ana oturumda görüldü ve bulgu geçersiz sayıldı.
+4. **Faz 6, internetten alınmış demo görselleri (geliştirici hatası, yapay zekâ yakaladı).** Geliştirici veri setini hızlandırmak için önce internetten görsel indirdi ve "hepsi benim çektiğim" dedi. Ana oturum kimlik kartlarında yüz, isim ve TC no buldu; ml-engineer 5 görselde Reddit şeridini, bir sırt çantası kolisinde ABD adresini fark etti. Görseller ana oturumda açılıp doğrulandı ve seed durduruldu; geliştirici kendi fotoğraflarını çekti. Yani bu örnekte hata yapay zekânın değil insanın; yapay zekâ kuralı (md. 7) uygulayıp durdurdu.
+5. **Faz 8, eşik değişince bildirim eşleşmesi.** Metin eşikleri (0,37 / 0,31) commit'lendikten sonra fark edildi ki kayıp bildirimi eşleşmesi metin skorunu aramadan farklı (metin indeksi olmadan) hesaplıyor; yeni eşik orada doğru eşleşmelerin çoğunu eleyecekti. Ayrı bir commit ile iki yol aynı formüle getirildi.
+
+### Elle düzeltmelerim
+
+TODO(kullanıcı): geliştirici kendi elle yaptığı düzeltmeleri yazacak
