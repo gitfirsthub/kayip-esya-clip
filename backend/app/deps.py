@@ -53,12 +53,13 @@ def require_admin(
     """Yetkili kapsamı döndürür: None = tüm noktalar (genel token), str = tek teslim noktası.
 
     Bütün adaylar sabit zamanlı karşılaştırılır; ilk eşleşmede erken çıkılmaz.
+    Örnek değerli veya kısa tokenlar (config.token_usable) hiç aday sayılmaz.
     """
     if not x_admin_token:
         raise ApiError(403, MSG_FORBIDDEN)
     scope: str | None = None
     ok = False
-    if settings.admin_token and _same(x_admin_token, settings.admin_token):
+    if settings.admin_token_usable and _same(x_admin_token, settings.admin_token):
         ok = True
     for point, token in settings.point_tokens.items():
         if _same(x_admin_token, token) and not ok:

@@ -3,6 +3,19 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# .env.example'daki örnek değerler ve kısa tokenlar yetki vermez (depoda açıkça yazılılar).
+PLACEHOLDER_TOKENS = frozenset({"change-me"})
+PLACEHOLDER_PREFIX = "ornek-"
+MIN_TOKEN_LEN = 12
+
+
+def token_usable(token: str) -> bool:
+    return (
+        len(token) >= MIN_TOKEN_LEN
+        and token not in PLACEHOLDER_TOKENS
+        and not token.startswith(PLACEHOLDER_PREFIX)
+    )
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -45,7 +58,23 @@ class Settings(BaseSettings):
             return {}
         if not isinstance(data, dict):
             return {}
-        return {str(k): v for k, v in data.items() if isinstance(v, str) and v}
+        return {str(k): v for k, v in data.items() if isinstance(v, str) and token_usable(v)}
+
+    @property
+    def admin_token_usable(self) -> bool:
+        return token_usable(self.admin_token)
+
+    @property
+    def ignored_admin_tokens(self) -> int:
+        """Ayarlı olup örnek değer ya da kısa olduğu için yok sayılan token sayısı (değerler loglanmaz)."""
+        count = int(bool(self.admin_token) and not self.admin_token_usable)
+        try:
+            data = json.loads(self.admin_point_tokens) if self.admin_point_tokens.strip() else {}
+        except ValueError:
+            return count
+        if isinstance(data, dict):
+            count += sum(1 for v in data.values() if isinstance(v, str) and v and not token_usable(v))
+        return count
 
     @property
     def cors_origin_list(self) -> list[str]:

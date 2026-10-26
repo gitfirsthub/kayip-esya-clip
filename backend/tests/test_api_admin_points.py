@@ -86,3 +86,19 @@ def test_tokens_not_in_logs_or_responses(points, caplog):
     assert T_OFIS not in r.text
     logged = "\n".join(rec.getMessage() for rec in caplog.records)
     assert T_OFIS not in logged and "yanlis-deneme" not in logged
+
+
+@pytest.mark.parametrize("token", ["change-me", "ornek-token-kutuphane", "kisa-token"])
+def test_placeholder_and_short_tokens_are_ignored(api, token):
+    api.app.dependency_overrides[get_settings] = lambda: Settings(
+        data_dir=api.settings.data_dir, admin_token=token, admin_point_tokens=json.dumps({OFIS: token})
+    )
+    assert api.get("/api/admin/me", headers=hdr(token)).status_code == 403
+    assert api.delete("/api/items/1", headers=hdr(token)).status_code == 403
+
+
+def test_ignored_tokens_are_counted_without_values():
+    s = Settings(admin_token="change-me", admin_point_tokens=json.dumps({OFIS: "ornek-token-x", KUTUPHANE: T_KUT}))
+    assert not s.admin_token_usable
+    assert s.point_tokens == {KUTUPHANE: T_KUT}
+    assert s.ignored_admin_tokens == 2
