@@ -11,6 +11,7 @@ from app.ml.pii import (
     expand_and_clip,
     find_redactions,
     group_lines,
+    is_document_like,
     merge_boxes,
     redact,
     tckn_checksum_ok,
@@ -296,3 +297,59 @@ def test_redact_grayscale_and_empty_boxes():
     out = redact(img, [(0, 0, 5, 5), (7, 7, 7, 9)])
     arr = np.asarray(out)
     assert (arr[0:5, 0:5] == 0).all() and arr[5:, 5:].min() == 255
+
+
+# --- Belge algılama ---
+
+def id_card_words():
+    """Uydurma kimlik benzeri kart; isimler gerçek kişi değildir."""
+    rows = [("T.C.", "KİMLİK", "KARTI"), ("Soyadı/Surname",), ("ÖRNEKOĞLU",), ("Adı/Given", "Name(s)"), ("DENEME",),
+            ("TC", "Kimlik", "No"), (FAKE_TCKN,)]
+    words = []
+    for n, row in enumerate(rows):
+        words += line(*row, line_no=n + 1, y=20 + 50 * n)
+    return words
+
+
+def test_id_card_is_document_like_and_all_text_redacted():
+    words = id_card_words()
+    assert is_document_like(words, faces=0)
+    result = find_redactions(words, faces=0, img_size=(1000, 500))
+    assert result.document_like is True
+    for w in words:
+        assert any(b[0] <= w.box[0] and b[1] <= w.box[1] and b[2] >= w.box[2] and b[3] >= w.box[3] for b in result.boxes)
+
+
+@pytest.mark.parametrize("texts", [
+    ("ÖĞRENCİ", "KARTI"),
+    ("Öğrenci", "Fakültesi"),
+    ("STUDENT", "UNIVERSITY"),
+    ("Doğum", "Tarihi", "Geçerlilik"),
+    ("SOYADI", "ADI"),
+    ("Adı/Name",),
+    ("KIMLlK", "SOYAD1"),  # OCR bozmaları, bir karakter fark
+    ("ogrenci", "fakulte"),  # Türkçe karakter düşmesi
+])
+def test_document_keywords_detected(texts):
+    assert is_document_like(line(*texts), faces=0)
+
+
+@pytest.mark.parametrize("texts", [
+    ("CASIO", "fx-991ES", "PLUS"),
+    ("KİMLİK",),  # tek anahtar sözcük yetmez
+    ("ADI", "ADI"),  # aynı sözcük iki kez sayılmaz
+    ("THE", "NORTH", "FACE"),
+    ("Kalem", "Kutusu"),
+])
+def test_not_document_like(texts):
+    assert not is_document_like(line(*texts), faces=0)
+
+
+def test_face_with_many_words_is_document_like():
+    words = line(*[f"kelime{i}" for i in range(8)])
+    assert not is_document_like(words, faces=0)
+    assert is_document_like(words, faces=1)
+    assert not is_document_like(words[:7], faces=1)
+    result = find_redactions(words, faces=1, img_size=(2000, 500))
+    assert result.document_like
+    assert len(result.boxes) == 8

@@ -35,6 +35,18 @@ MAIL_DOMAIN_RE = re.compile(
 )
 LITERAL_AT_RE = re.compile(r"\w[@＠]|[@＠]\w")
 
+# Kimlik/öğrenci kartı/ehliyet/pasaport anahtar sözcükleri (Türkçe karakterler katlanmış, büyük harf).
+DOCUMENT_KEYWORDS = frozenset({
+    "TC", "KIMLIK", "SERI", "SOYADI", "ADI", "DOGUM", "GECERLILIK", "OGRENCI", "FAKULTE", "FAKULTESI",
+    "IDENTITY", "STUDENT", "UNIVERSITY", "UNIVERSITESI", "CUMHURIYETI", "NUFUS", "CINSIYET", "CINSIYETI",
+    "SURNAME", "NAME", "NAMES", "GIVEN", "BIRTH", "NATIONALITY", "UYRUGU", "PASAPORT", "PASSPORT",
+    "EHLIYET", "SURUCU", "DRIVING", "LICENCE", "LICENSE", "BELGESI", "KARTI", "CARD", "EXPIRY", "VALID",
+})
+FUZZY_KEYWORD_MIN_LEN = 6
+DOC_FACE_MIN_WORDS = 8
+TR_FOLD = str.maketrans({"İ": "I", "ı": "I", "i": "I", "Ş": "S", "ş": "S", "Ğ": "G", "ğ": "G",
+                         "Ü": "U", "ü": "U", "Ö": "O", "ö": "O", "Ç": "C", "ç": "C"})
+
 
 @dataclass(frozen=True)
 class PiiMatch:
@@ -272,6 +284,45 @@ def detect_pii(words: list[Word]) -> list[PiiMatch]:
     return matches
 
 
+def _within_one_edit(a: str, b: str) -> bool:
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) <= 1
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    return any(long_[:k] + long_[k + 1 :] == short for k in range(len(long_)))
+
+
+def _keyword_of(part: str) -> str | None:
+    key = re.sub(r"[^A-Z0-9]", "", part.translate(TR_FOLD).upper())
+    if not key:
+        return None
+    if key in DOCUMENT_KEYWORDS:
+        return key
+    if len(key) >= FUZZY_KEYWORD_MIN_LEN - 1:
+        for kw in sorted(DOCUMENT_KEYWORDS):
+            if len(kw) >= FUZZY_KEYWORD_MIN_LEN and _within_one_edit(key, kw):
+                return kw
+    return None
+
+
+def document_keywords(words: list[Word]) -> set[str]:
+    found = set()
+    for w in words:
+        for part in re.split(r"[/|,;:]+", w.text):
+            kw = _keyword_of(part)
+            if kw:
+                found.add(kw)
+    return found
+
+
+def is_document_like(words: list[Word], faces: int) -> bool:
+    """≥2 farklı belge anahtar sözcüğü VEYA (yüz var VE ≥8 kelime okundu)."""
+    if len(document_keywords(words)) >= 2:
+        return True
+    return faces > 0 and len(words) >= DOC_FACE_MIN_WORDS
+
+
 def expand_and_clip(box: Box, img_size: tuple[int, int], pad: int = BOX_PADDING) -> Box:
     w, h = img_size
     x0, y0, x1, y1 = box
@@ -303,9 +354,14 @@ def merge_boxes(boxes: list[Box]) -> list[Box]:
 
 def find_redactions(words: list[Word], faces: int, img_size: tuple[int, int]) -> RedactionResult:
     """Sansürlenecek kutular. Bir desen birden çok kelimeye yayıldıysa her kelimenin kutusu girer."""
-    indices = sorted({i for m in detect_pii(words) for i in m.words})
+    document_like = is_document_like(words, faces)
+    if document_like:
+        # İsim/soyisim desenle yakalanamaz: belgedeki okunan bütün metin kapatılır.
+        indices = list(range(len(words)))
+    else:
+        indices = sorted({i for m in detect_pii(words) for i in m.words})
     boxes = [expand_and_clip(words[i].box, img_size) for i in indices]
-    return RedactionResult(boxes=merge_boxes(boxes), document_like=False)
+    return RedactionResult(boxes=merge_boxes(boxes), document_like=document_like)
 
 
 def redact(img: Image.Image, boxes: list[Box]) -> Image.Image:
