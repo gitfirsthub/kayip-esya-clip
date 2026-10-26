@@ -31,6 +31,9 @@ services:
       TRANSFORMERS_OFFLINE: "1"
     volumes:
       - app_data:/data
+    # 1 MB üstü yüklemelerin geçici kopyası kalıcı diske yazılmasın (KVKK).
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
