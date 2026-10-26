@@ -11,8 +11,8 @@
 | 6 Eval | ✅ | 2026-10-26 | 21 ilan + 42 TR/42 EN metin + 7 görsel sorgu; seed_demo.py, eval_retrieval.py, EVAL.md; TR metin R@5 0.857 / R@1 0.524; eşikler 0.315/0.255; 83 test geçti; spec-guard kritik ihlal yok |
 | 7 Ek: kayıp bildirimi | ✅ (tarayıcı kontrolü kullanıcıda) | 2026-10-26 | POST /api/lost-reports, GET /api/lost-reports/{kod}/matches, yeni ilanla otomatik eşleşme, "Takip kodumla kontrol et" kutusu; 98 test geçti; tsc ve build hatasız; spec-guard kritik ihlal yok |
 | 7A PII sansürü ve yerel OCR | ✅ (elle doğrulama kullanıcıda) | 2026-10-26 | Tesseract (tur+eng) ile OCR, TC/telefon/e-posta/IBAN/kart/6+ rakam siyah bantla kapatılır, kimlik benzeri belgede tüm metin; fail-closed 503; izin listeli marka/model etiketleri; ilan metin indeksi + etiket bonusu (SEARCH_TEXT_WEIGHT=0.0, EVAL'e göre); 210 test geçti (venv, 3 tesseract testi atlandı) / 212 geçti (imaj içinde gerçek tesseract); temiz klon ve `--network none` geçti; spec-guard kritik ihlal yok |
-| 7B Frontend görsel cilası + Yönetici paneli | 🟡 (görsel kontrol ve geri bildirim turu kullanıcıda) | 2026-10-26 | Tasarım belirteçleri, başlık/segmented sekmeler, kart ızgarası + iskelet, sürükle-bırak yükleme, boş/hata durumları, etiket ve "N bölge gizlendi" çipleri, mobil/AA (23 kontrast çifti ölçüldü, hepsi geçti); Yönetici sekmesi + teslim noktası başına token (ADMIN_POINT_TOKENS, GET /api/admin/me ve /api/admin/items); 9 yeni backend testi (219 geçti); build ve tsc hatasız; metin ağırlığı kullanıcı seçimiyle 0.1 |
-| 8 Denetim | ⬜ | | |
+| 7B Frontend görsel cilası + Yönetici paneli | ✅ (kullanıcı 2026-10-26'da kabul etti) | 2026-10-26 | Tasarım belirteçleri, başlık/segmented sekmeler, kart ızgarası + iskelet, sürükle-bırak yükleme, boş/hata durumları, etiket ve "N bölge gizlendi" çipleri, mobil/AA (23 kontrast çifti ölçüldü, hepsi geçti); Yönetici sekmesi + teslim noktası başına token (ADMIN_POINT_TOKENS, GET /api/admin/me ve /api/admin/items); 9 yeni backend testi (219 geçti); build ve tsc hatasız; metin ağırlığı kullanıcı seçimiyle 0.1 |
+| 8 Denetim | 🟡 | 2026-10-26 | Başladı |
 | 9 Dokümantasyon | ⬜ | | |
 
 ## Açık sorular (kullanıcıya)
@@ -23,7 +23,7 @@
 - Faz 2 kararları (kullanıcı onaylı): aynı-uzay doğrulaması dokulu sentetik nesnelerle yapıldı (düz beyaz kare CLIP'in kendi İngilizce kodlayıcısında da başarısız; görsel kodlayıcı sınırlaması). "diğer" kategorisi istem matrisinden çıkarıldı, yalnızca güven < 0.35'te dönen yedek etiket. `backend/scripts/try_blur.py` kullanıcının isteğiyle eklendi (PLAN dosya listesi dışında). `.gitignore`'da `data/` → `/data/` (campus.json takip edilsin diye).
 - Faz 2: model yüklüyken yüz tespiti hata verirse `FaceBlurError` fırlatılır (görsel bulanıklaştırılmadan geçmez).
 - Faz 2 commit'leri kod paralel yazıldıktan sonra adım adım (her biri kendi testiyle) ama kısa aralıkla atıldı; spec-guard bunu "toplu commit" gibi görünebilir diye uyardı. Sonraki fazlarda her adım bitince hemen commit atılacak.
-- Faz 8'deki yasaklı kelime grep'i `.claude/hooks/spec_guard.py` dosyasını da yakalar (yasak listesi o dosyada). Faz 8'de `--exclude-dir=.claude` eklenmesi kullanıcıya sorulacak.
+- Faz 8'deki yasaklı kelime grep'i `.claude/hooks/spec_guard.py` dosyasını da yakalar (yasak listesi o dosyada). Kullanıcı kararıyla (Faz 8) PLAN'daki komuta `--exclude-dir=.claude` eklendi; `.claude` ürün kodu değil, geliştirme araçlarıdır.
 
 - Faz 3 kararları (kullanıcı onaylı): yüz modeli yokken POST /api/items 503 döner (bulanıklaştırılmamış görsel saklanmaz); image_url göreli `/uploads/<uuid>.jpg`; geçersiz location/category/status filtresi 422; sözleşmede olmayan hata metinleri (413, 415, 403, 503, alan 422'leri) onaylanan Türkçe metinlerle uygulandı. Tarih kontrolü Türkiye saatiyle (UTC+3) yapılır. Aramada geçersiz `include_returned` / `top_k` 422 döner. Test görselleri Pillow ile kodda üretilir.
 

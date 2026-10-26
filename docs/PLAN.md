@@ -174,7 +174,7 @@ Cilalama fazı (CSS + TSX yapısı; yeni npm paketi yok; sistem yazı tipi; meti
 - spec-guard agent'ı docs/SARTNAME_KONTROL.md'deki her maddeyi kanıtla (dosya:satır veya komut çıktısı) doğrular.
 - `/code-review` ve `/security-review` çalıştırılır; bulunan sorunlar düzeltilir veya gerekçesiyle ILERLEME'ye yazılır.
 - Hata senaryoları elle denenir: boş form, 30 MB dosya, .pdf yükleme, backend kapalıyken frontend, ilk açılışta model yüklenirken arama.
-- `grep -rniE "ultralytics|yolo|openai|anthropic|generativeai" --exclude-dir={node_modules,.git,docs} --exclude=*.md .` boş çıkmalı.
+- `grep -rniE "ultralytics|yolo|openai|anthropic|generativeai" --exclude-dir={node_modules,.git,docs,.claude} --exclude=*.md .` boş çıkmalı.
 Kabul: kontrol listesinin tamamı [x]; açık kritik bulgu yok.
 
 ## Faz 9: README, AI günlüğü, video, son test (Sonnet; docs-writer agent'ı)
