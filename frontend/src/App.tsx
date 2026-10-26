@@ -39,12 +39,26 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Kampüs Kayıp Eşya</h1>
-        <p>
-          Bulunan eşyaları ve kayıp ilanlarını yapay zekâ ile anlamsal olarak eşleştirerek eşyanı
-          bulmana yardım ederiz.
-        </p>
-        <p className="privacy">Yüzler otomatik bulanıklaştırılır, iletişim bilgisi istenmez.</p>
+        <svg
+          className="logo"
+          width="44"
+          height="44"
+          viewBox="0 0 44 44"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect width="44" height="44" rx="10" fill="#1f3a68" />
+          <circle cx="20" cy="20" r="8" fill="none" stroke="#ffffff" strokeWidth="3" />
+          <path d="M26 26l8 8" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        <div className="header-text">
+          <h1>Kampüs Kayıp Eşya</h1>
+          <p className="tagline">
+            Bulunan eşyaları ve kayıp ilanlarını yapay zekâ ile anlamsal olarak eşleştirerek eşyanı
+            bulmana yardım ederiz.
+          </p>
+          <p className="privacy">Yüzler otomatik bulanıklaştırılır, iletişim bilgisi istenmez.</p>
+        </div>
       </header>
       <main>
         <Tabs tabs={TABS} active={active} onChange={setActive} />
