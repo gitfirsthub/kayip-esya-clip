@@ -7,7 +7,8 @@ from PIL import Image
 from app.errors import ApiError
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
-ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+# MPO: birçok telefonun çektiği çok kareli JPEG; Pillow ilk kareyi açar.
+ALLOWED_FORMATS = {"JPEG", "MPO", "PNG", "WEBP"}
 CHUNK_SIZE = 64 * 1024
 
 MSG_UNSUPPORTED = "Desteklenmeyen dosya türü. JPEG, PNG veya WEBP yükleyin."

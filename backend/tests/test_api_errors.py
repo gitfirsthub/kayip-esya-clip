@@ -1,4 +1,7 @@
+import io
+
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.main import create_app
 from tests.conftest import ADMIN_TOKEN, make_image_bytes
@@ -88,3 +91,11 @@ def test_png_and_webp_accepted(api):
             files={"image": (f"a.{fmt.lower()}", make_image_bytes(fmt=fmt), ctype)},
         )
         assert r.status_code == 201, fmt
+
+
+def test_phone_mpo_jpeg_accepted(api):
+    # Telefonların çok kareli JPEG'i (MPO) image/jpeg olarak gelir; 415 almamalı.
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), "red").save(buf, "MPO", save_all=True, append_images=[Image.new("RGB", (64, 48), "blue")])
+    r = api.post("/api/items", data=valid_form(), files={"image": ("tel.jpg", buf.getvalue(), "image/jpeg")})
+    assert r.status_code == 201
