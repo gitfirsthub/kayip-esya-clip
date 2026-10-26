@@ -23,6 +23,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   // Yönetici tokenı yalnızca bellekte; sayfa yenilenince veya çıkışta silinir.
   const [session, setSession] = useState<AdminSession | null>(null);
+  // Son kayıp bildiriminin takip kodu; yalnızca bellekte, sekme değişince silinmez.
+  const [trackingCode, setTrackingCode] = useState<string | null>(null);
 
   const loadMeta = useCallback(async () => {
     setLoading(true);
@@ -86,7 +88,9 @@ export default function App() {
               Tekrar dene
             </button>
           )}
-          {meta && active === "search" && <SearchTab meta={meta} />}
+          {meta && active === "search" && (
+            <SearchTab meta={meta} trackingCode={trackingCode} onTrackingCode={setTrackingCode} />
+          )}
           {meta && active === "found" && <FoundTab meta={meta} />}
           {meta && active === "items" && <ItemsTab />}
           {meta && active === "admin" && (

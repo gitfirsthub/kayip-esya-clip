@@ -9,7 +9,14 @@ import SkeletonGrid from "./Skeleton";
 import Spinner from "./Spinner";
 import TrackingBox from "./TrackingBox";
 
-export default function SearchTab({ meta }: { meta: Meta }) {
+type Props = {
+  meta: Meta;
+  // Takip kodu bir daha gösterilmez; sekme değişince kaybolmasın diye App'te tutulur.
+  trackingCode: string | null;
+  onTrackingCode: (code: string) => void;
+};
+
+export default function SearchTab({ meta, trackingCode, onTrackingCode }: Props) {
   const uid = useId();
   const [query, setQuery] = useState("");
   const [image, setImage] = useState<File | null>(null);
@@ -19,7 +26,6 @@ export default function SearchTab({ meta }: { meta: Meta }) {
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [reporting, setReporting] = useState(false);
-  const [trackingCode, setTrackingCode] = useState<string | null>(null);
 
   async function onReport() {
     if (!query.trim() && !image) {
@@ -30,7 +36,7 @@ export default function SearchTab({ meta }: { meta: Meta }) {
     setError(null);
     try {
       const res = await createLostReport({ query: query.trim(), image, location });
-      setTrackingCode(res.tracking_code);
+      onTrackingCode(res.tracking_code);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Beklenmeyen bir hata oluştu.");
     } finally {
