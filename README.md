@@ -1,4 +1,4 @@
-TODO(kullanıcı): video bağlantısı
+Demo videosu: https://drive.google.com/file/d/1-Bt7Rv185M3PVg-OcmDNRuaz0xzgisAD/view?usp=sharing
 
 # Kampüs Kayıp Eşya
 
@@ -92,8 +92,8 @@ Neden YOLO değil CLIP: YOLO, eğitildiği sabit nesne sınıflarını tanıyan 
 docker compose up --build
 ```
 
-- Arayüz: http://localhost:3000
-- API: http://localhost:8000 (durum: http://localhost:8000/health)
+- Arayüz: http://127.0.0.1:3000
+- API: http://127.0.0.1:8000 (durum: http://127.0.0.1:8000/health)
 - `.env` dosyası gerekmez; tüm değişkenlerin compose varsayılanları vardır. Değer değiştirmek için `.env.example` dosyasını kopyalayın.
 - İlk build uzun sürer ve büyük bir indirme yapar. Ölçülen süreler (Apple M4 Pro, Docker): `--no-cache` ile temiz klonda 8 dk 41 sn (Faz 7A); daha önceki ölçümler 216 sn ve 336 sn. Backend imajı 4.26 GB, frontend imajı 93.6 MB (Faz 7A). Torch CPU paketi ve modeller build sırasında iner. Faz 5'te 4.11 GB'lık backend imajının sıkıştırılmış boyutu yaklaşık 1.34 GB ölçüldü.
 - Yönetici işlemleri (ilan durumunu değiştirme, silme) için:
