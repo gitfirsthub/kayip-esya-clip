@@ -15,10 +15,6 @@ Kampüste bulunan eşyalar çoğu zaman bulunduğu yerde kalır. Eşyayı bulan 
 - Kaybeden kişi kayıp bildirimi bırakır ve bir takip kodu alır. Yeni eklenen eşyalar bu bildirimle eşleşirse kodla kontrol edilebilir.
 - İletişim bilgisi istenmez; eşya bir teslim noktasına bırakılır.
 
-## Ekran görüntüsü
-
-TODO(kullanıcı): docs/screenshot.png
-
 ## Mimari
 
 ```mermaid
@@ -41,7 +37,7 @@ flowchart LR
         UP["uploads/uuid.jpg<br/>yalnızca bulanıklaştırılmış JPEG"]
     end
 
-    B -->|"sayfa (localhost:3000)"| N
+    B -->|"sayfa (127.0.0.1:3000)"| N
     B -->|"API çağrıları (VITE_API_URL, 8000)"| API
     API --> BLUR
     API --> OCR
@@ -198,7 +194,7 @@ Sınırlar:
 
 ## Geliştiriciler
 
-TODO(kullanıcı): geliştirici adları
+- Efe Şenel
 
 ## Yapay zekâyı nasıl kullandık
 
@@ -256,4 +252,14 @@ Günlük model seçiminin gerekçesini kaydetmez; tabloda yalnızca fazdaki iş 
 
 ### Elle düzeltmelerim
 
-TODO(kullanıcı): geliştirici kendi elle yaptığı düzeltmeleri yazacak
+Kaynak: günlükteki "İnsanın (geliştiricinin) elle yaptığı veya karar verdiği" satırları.
+
+1. **Kurallar ve plan.** CLAUDE.md'deki yasaklar, mimari, faz planı ve koruma dosyalarının (hook, `settings.json` deny listesi) içeriğini ben belirledim; her faz planını okuyup onayladıktan sonra kod yazıldı.
+2. **Etiket kategorileri (Faz 2).** "Diğer" kategorisini zero-shot etiketleme isteminden çıkardım.
+3. **Yüz bulanıklaştırmayı kendi yüzümde doğruladım (Faz 3).** Demo verisinde yüz olamayacağı için `try_blur.py` ile kendi fotoğrafımda YuNet'in yüzü bulup bulanıklaştırdığını elle kontrol ettim.
+4. **amd64 denemesi (Faz 5).** amd64 imaj denemesini ben istedim.
+5. **Demo fotoğrafları (Faz 6).** İnternetten görsel kullanma hatamı yapay zekâ yakalayınca bütün demo görsellerini kendim, yüz içermeyecek şekilde yeniden çektim.
+6. **Eşleşme kararları (Faz 7).** Görsel sorgular için ayrı eşik kullanılmasına ve kayıp bildirimi oluşturulunca mevcut ilanların da taranmasına ben karar verdim.
+7. **Kişisel veri desenleri (Faz 7A).** Sansürlenecek öğrenci numarası biçimini ben belirledim.
+8. **Yönetici modeli (Faz 7B).** Kullanıcı hesabı yerine teslim noktası başına token modelini ben seçtim.
+9. **İnceleme bulguları (Faz 8).** Şartname ve güvenlik incelemesindeki bulgulardan düzeltilecek 10 tanesini tek tek seçtim. macOS'ta düşen OCR testinin eşiğini değiştirmek yerine testin Docker imajında koşturulmasına karar verdim.
